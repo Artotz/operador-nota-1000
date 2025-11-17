@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fffdf2;
+  --foreground: #0f172a;
+  --accent: #fde100;
 }
 
 @theme inline {
@@ -12,15 +13,54 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes hero-ease-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hero-ease-in {
+  animation: hero-ease-in 0.9s ease-in forwards;
+}
+
+@keyframes podium-card {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes podium-column {
+  from {
+    opacity: 0;
+    transform: translateY(80px) scaleY(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+.podium-step {
+  animation: podium-card 0.7s ease-out forwards;
+}
+
+.podium-column {
+  animation: podium-column 1s cubic-bezier(0.21, 0.61, 0.35, 1) forwards;
+  transform-origin: bottom center;
 }
