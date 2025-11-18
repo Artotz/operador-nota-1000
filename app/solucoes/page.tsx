@@ -7,7 +7,33 @@ type PodiumItem = {
   bg: string;
 };
 
-export default function SolutionsPage() {
+type RandomUserResult = {
+  picture: {
+    large: string;
+    medium: string;
+    thumbnail: string;
+  };
+};
+
+async function fetchRandomFaces(count: number) {
+  try {
+    const response = await fetch(
+      `https://randomuser.me/api/?results=${count}&inc=picture&noinfo=1`,
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data: { results?: RandomUserResult[] } = await response.json();
+    return data.results?.map((result) => result.picture.large) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export default async function SolutionsPage() {
   const podium: PodiumItem[] = [
     {
       place: 3,
@@ -53,13 +79,19 @@ export default function SolutionsPage() {
     },
   ];
 
+  const faces = await fetchRandomFaces(podium.length);
+  const podiumWithFaces = podium.map((podiumStep, index) => ({
+    ...podiumStep,
+    avatar: faces[index],
+  }));
+
   return (
-    <div className="mx-auto max-w-5xl px-6 py-20 text-[#0f172a]">
+    <div className="mx-auto max-w-5xl h-[90vh] overflow-y-hidden px-6 pt-20 text-[#0f172a]">
       <div className="text-center">
-        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+        {/* <span className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
           Lorem ipsum
-        </span>
-        <h1 className="mt-4 text-4xl font-semibold tracking-tight text-[#0f172a]">
+        </span> */}
+        <h1 className=" text-4xl font-semibold tracking-tight text-[#0f172a]">
           Lorem ipsum dolor sit amet consectetur
         </h1>
         <p className="mt-3 text-lg text-[#4b5563]">
@@ -71,7 +103,7 @@ export default function SolutionsPage() {
       </div>
 
       <div className="mt-16 grid items-end gap-6 md:grid-cols-3">
-        {podium.map((item) => (
+        {podiumWithFaces.map((item) => (
           <div
             key={item.title}
             className="podium-step flex flex-col items-center gap-3 text-center text-[#6b7280]"
@@ -82,25 +114,35 @@ export default function SolutionsPage() {
             </span>
             <div
               className={`podium-column flex w-full flex-col justify-end rounded-[2rem] border border-white/60 bg-gradient-to-t ${item.bg} p-5 shadow-2xl`}
-              style={{ height: item.height, animationDelay: `${item.delay + 0.1}s` }}
+              style={{
+                height: item.height,
+                animationDelay: `${item.delay + 0.1}s`,
+              }}
             >
               <div className="mb-6 flex justify-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-dashed border-[#fde46b] bg-white/80 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  Lorem
-                </div>
+                {item.avatar ? (
+                  <img
+                    src={item.avatar}
+                    alt={`Avatar do participante ${item.place}`}
+                    className="h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-dashed border-[#fde46b] bg-white/80 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    Lorem
+                  </div>
+                )}
               </div>
               <h2 className="text-lg font-semibold text-[#0f172a]">
                 {item.title}
               </h2>
-              <p className="mt-2 text-sm text-[#475569]">
-                {item.description}
-              </p>
+              <p className="mt-2 text-sm text-[#475569]">{item.description}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-16 grid gap-5 md:grid-cols-3">
+      {/* <div className="mt-16 grid gap-5 md:grid-cols-3">
         {modules.map((module) => (
           <div
             key={module.title}
@@ -112,12 +154,10 @@ export default function SolutionsPage() {
             <h3 className="mt-2 text-lg font-semibold text-[#0f172a]">
               {module.title}
             </h3>
-            <p className="mt-2 text-sm text-[#4b5563]">
-              {module.detail}
-            </p>
+            <p className="mt-2 text-sm text-[#4b5563]">{module.detail}</p>
           </div>
         ))}
-      </div>
+      </div> */}
     </div>
   );
 }

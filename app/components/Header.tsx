@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/", label: "Lorem" },
-  { href: "/solucoes", label: "Ipsum" },
-  { href: "/sobre", label: "Dolor" },
-  { href: "/contato", label: "Sit" },
+  { href: "/", label: "Início" },
+  { href: "/solucoes", label: "Pódio" },
+  { href: "/sobre", label: "Desempenho do Operador" },
+  { href: "/contato", label: "Desempenho da Empresa" },
 ];
 
 export function Header() {
@@ -20,7 +20,7 @@ export function Header() {
           href="/"
           className="text-lg font-semibold tracking-tight text-[#0f172a]"
         >
-          Lorem Ipsum
+          Projeto de Excelência Operacional
         </Link>
         <nav className="flex gap-2 text-sm font-medium">
           {tabs.map((tab) => {
