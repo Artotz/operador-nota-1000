@@ -10,10 +10,10 @@ export const messages = {
     brand: "Projeto de Excelencia Operacional",
     tabs: [
       { href: "/", label: "Inicio" },
-      { href: "/solucoes", label: "Podio" },
-      { href: "/desempenho", label: "Desempenho" },
       { href: "/about", label: "About" },
       { href: "/metrics", label: "Metrics" },
+      { href: "/solucoes", label: "Podio" },
+      { href: "/desempenho", label: "Desempenho" },
     ],
   },
   home: {
