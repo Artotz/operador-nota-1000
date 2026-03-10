@@ -1,14 +1,10 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getMessages } from "@/i18n";
 
-const tabs = [
-  { href: "/", label: "Início" },
-  { href: "/solucoes", label: "Pódio" },
-  { href: "/sobre", label: "Desempenho do Operador" },
-  { href: "/contato", label: "Desempenho da Empresa" },
-];
+const { header } = getMessages();
 
 export function Header() {
   const pathname = usePathname();
@@ -20,10 +16,10 @@ export function Header() {
           href="/"
           className="text-lg font-semibold tracking-tight text-[#0f172a]"
         >
-          Projeto de Excelência Operacional
+          {header.brand}
         </Link>
         <nav className="flex gap-2 text-sm font-medium">
-          {tabs.map((tab) => {
+          {header.tabs.map((tab) => {
             const isActive =
               tab.href === "/"
                 ? pathname === "/"
