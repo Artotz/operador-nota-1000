@@ -6,7 +6,7 @@ import { getMessages } from "@/i18n";
 type SeriesItem = {
   label: string;
   color: string;
-  values: number[];
+  values: ReadonlyArray<number>;
 };
 
 function LineChart({
@@ -14,8 +14,8 @@ function LineChart({
   data,
   ariaLabel,
 }: {
-  weeks: string[];
-  data: SeriesItem[];
+  weeks: ReadonlyArray<string>;
+  data: ReadonlyArray<SeriesItem>;
   ariaLabel: string;
 }) {
   const chartWidth = 640;
@@ -31,7 +31,7 @@ function LineChart({
     return chartHeight - normalized * chartHeight;
   };
 
-  const pathFor = (values: number[]) =>
+  const pathFor = (values: ReadonlyArray<number>) =>
     values
       .map((value, index) => {
         const x = index * xStep;
