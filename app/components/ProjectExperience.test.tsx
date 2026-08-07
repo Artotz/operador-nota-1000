@@ -34,18 +34,14 @@ beforeAll(() => {
 });
 
 describe("ProjectExperience", () => {
-  it("apresenta o novo hero, a quinzena pendente e somente aliases antes do pódio", () => {
+  it("apresenta o novo hero, a quinzena pendente e os aliases dos operadores", () => {
     render(<ProjectExperience />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      /Performance que deixa\s*marca na operação/i,
-    );
     expect(screen.getByAltText("Operador Nota 1.000 — Excelência Operacional")).toBeInTheDocument();
+    expect(screen.getByAltText("Equipe do Projeto Operador Nota 1.000 em campo")).toHaveAttribute("src", "/project-assets/hero/IMG_4736.JPG.jpeg");
+    expect(screen.queryByText(/Performance que/i)).not.toBeInTheDocument();
     expect(screen.getByText("Aguardando dados da última quinzena")).toBeInTheDocument();
     ["EEH-33", "EEH-34", "EEH-35", "EEH-36", "EEH-37"].forEach((alias) => {
       expect(screen.getAllByText(alias).length).toBeGreaterThan(0);
-    });
-    ["Paulo César Ferreira", "Luciano Damaceno Ferreira", "Cristiano José de Moura", "Quitério da Silva"].forEach((name) => {
-      expect(screen.queryByText(name)).not.toBeInTheDocument();
     });
   });
 
@@ -59,6 +55,29 @@ describe("ProjectExperience", () => {
     fireEvent.click(productivityButton);
     expect(productivityButton).toHaveAttribute("aria-pressed", "true");
     expect(within(consolidated as HTMLElement).getByText("Tempo efetivamente trabalhando")).toBeInTheDocument();
+  });
+
+  it("updates the section rail from the scroll position", () => {
+    let scrollOffset = 0;
+    const sectionOrder = ["abertura", "roadmap", "criterios", "evolucao", "operadores", "podio", "economias", "continuidade", "parceiros"];
+    const bounds = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const position = sectionOrder.indexOf(this.id);
+      const top = position < 0 ? 10000 : position * 1000 - scrollOffset;
+      return { top, bottom: top + 1000, height: 1000, left: 0, right: 800, width: 800, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+
+    render(<ProjectExperience />);
+    expect(screen.getByRole("button", { name: "Ir para Abertura" })).toHaveAttribute("aria-current", "step");
+
+    scrollOffset = 2500;
+    fireEvent.scroll(window);
+    expect(screen.getByRole("button", { name: "Ir para Critérios" })).toHaveAttribute("aria-current", "step");
+
+    scrollOffset = 3500;
+    fireEvent.scroll(window);
+    expect(screen.getByRole("button", { name: "Ir para Consolidado" })).toHaveAttribute("aria-current", "step");
+
+    bounds.mockRestore();
   });
 
   it("fixa a seleção de um operador por botão acessível", () => {
@@ -77,32 +96,38 @@ describe("ProjectExperience", () => {
 
   it("revela o pódio com nomes reais, pontos inteiros e tabela apenas ao final", () => {
     render(<ProjectExperience />);
-    expect(screen.getAllByText("Identidade protegida")).toHaveLength(3);
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByText("Paulo César Ferreira")).not.toBeInTheDocument();
+    const podium = document.getElementById("podio") as HTMLElement;
+    expect(podium.querySelectorAll(".podium-lock")).toHaveLength(3);
+    expect(within(podium).queryByRole("table")).not.toBeInTheDocument();
+    expect(within(podium).queryByText("Paulo César Ferreira")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Revelar 3º lugar/i }));
-    expect(screen.getByText("Paulo César Ferreira")).toBeInTheDocument();
-    expect(screen.getByText(/^\d+ \/ 100$/)).toBeInTheDocument();
-    expect(screen.queryByText("Quitério da Silva")).not.toBeInTheDocument();
+    fireEvent.click(within(podium).getByRole("button", { name: /Revelar 3º lugar/i }));
+    expect(within(podium).getByText("Paulo César Ferreira")).toBeInTheDocument();
+    expect(within(podium).getByText(/^\d+ \/ 100$/)).toBeInTheDocument();
+    expect(within(podium).queryByText("Quitério da Silva")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Revelar 2º lugar/i }));
-    expect(screen.getByText("Quitério da Silva")).toBeInTheDocument();
-    expect(screen.queryByText("Luciano Damaceno Ferreira")).not.toBeInTheDocument();
+    fireEvent.click(within(podium).getByRole("button", { name: /Revelar 2º lugar/i }));
+    expect(within(podium).getByText("Quitério da Silva")).toBeInTheDocument();
+    expect(within(podium).queryByText("Luciano Damaceno Ferreira")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Revelar 1º lugar/i }));
-    expect(screen.getAllByText("Luciano Damaceno Ferreira").length).toBeGreaterThan(0);
-    expect(screen.getByText("Pódio revelado")).toBeInTheDocument();
-    expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Pontuação geral por operador" })).toBeInTheDocument();
+    fireEvent.click(within(podium).getByRole("button", { name: /Revelar 1º lugar/i }));
+    expect(within(podium).getAllByText("Luciano Damaceno Ferreira").length).toBeGreaterThan(0);
+    expect(within(podium).getByText("Pódio revelado")).toBeInTheDocument();
+    expect(within(podium).getByRole("table")).toBeInTheDocument();
+    expect(within(podium).getByRole("heading", { name: "Pontuação geral por operador" })).toBeInTheDocument();
   });
 
-  it("apresenta horas, economias e o CTA de continuidade", () => {
+  it("apresenta horas como indicador, resultados passáveis e dicas individuais", () => {
     render(<ProjectExperience />);
 
-    expect(screen.getByText("Horas monitoradas")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Eficiência que pode ser traduzida em economia/i })).toBeInTheDocument();
-    expect(screen.getByText("combustível potencialmente evitado")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Horas" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /O primeiro e o último retrato da operação/i })).toBeInTheDocument();
+    expect(screen.getByText("combustível poupado")).toBeInTheDocument();
+    expect(screen.getByText("8 dias")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Próximo card" }));
+    expect(screen.getByRole("button", { name: "Ir para economia em diesel" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Dicas sob medida para cada resultado.")).toBeInTheDocument();
+    expect(document.querySelectorAll(".continuity-panel-closed")).toHaveLength(2);
     expect(screen.getByRole("link", { name: /Planejar o próximo ciclo/i })).toHaveAttribute("href", "#parceiros");
   });
 });

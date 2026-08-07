@@ -1,13 +1,37 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { roadmapMilestones } from "@/app/data/roadmap";
+import { useEffect, useState } from "react";
+import { roadmapMilestones, type RoadmapImage } from "@/app/data/roadmap";
 
 export function RoadmapSection() {
   const [selectedId, setSelectedId] = useState(roadmapMilestones[0].id);
+  const [openedImage, setOpenedImage] = useState<RoadmapImage | null>(null);
   const selectedMilestone = roadmapMilestones.find((milestone) => milestone.id === selectedId) ?? roadmapMilestones[0];
   const hasImages = selectedMilestone.images.length > 0;
+  const openedIndex = openedImage
+    ? selectedMilestone.images.findIndex((image) => image.src === openedImage.src)
+    : -1;
+
+  useEffect(() => {
+    if (!openedImage) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenedImage(null);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openedImage]);
+
+  const moveLightbox = (direction: -1 | 1) => {
+    if (openedIndex < 0) return;
+    const nextIndex = (openedIndex + direction + selectedMilestone.images.length) % selectedMilestone.images.length;
+    setOpenedImage(selectedMilestone.images[nextIndex]);
+  };
 
   return (
     <section id="roadmap" className="story-section roadmap-section" aria-labelledby="roadmap-title">
@@ -29,7 +53,10 @@ export function RoadmapSection() {
               type="button"
               aria-pressed={isSelected}
               className={isSelected ? "is-active" : ""}
-              onClick={() => setSelectedId(milestone.id)}
+              onClick={() => {
+                setSelectedId(milestone.id);
+                setOpenedImage(null);
+              }}
             >
               <span aria-hidden="true">{String(roadmapMilestones.indexOf(milestone) + 1).padStart(2, "0")}</span>
               {milestone.date}
@@ -57,6 +84,12 @@ export function RoadmapSection() {
                 key={image.src}
                 className={`roadmap-collage-item roadmap-collage-item--${index + 1} roadmap-collage-item--hover-ready`}
               >
+                <button
+                  type="button"
+                  className="roadmap-image-button"
+                  onClick={() => setOpenedImage(image)}
+                  aria-label={`Abrir ${image.alt}`}
+                >
                 <Image
                   src={image.src}
                   alt={image.alt}
@@ -66,6 +99,8 @@ export function RoadmapSection() {
                   sizes="(max-width: 768px) 88vw, (max-width: 1200px) 42vw, 360px"
                   className="roadmap-collage-image roadmap-collage-image--hover-ready"
                 />
+                <span aria-hidden="true">↗</span>
+                </button>
               </figure>
             ))}
           </div>
@@ -77,6 +112,30 @@ export function RoadmapSection() {
         )}
       </article>
       </div>
+
+      {openedImage && (
+        <div
+          className="roadmap-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Visualização ampliada do registro fotográfico"
+          onMouseDown={(event) => event.currentTarget === event.target && setOpenedImage(null)}
+        >
+          <button type="button" className="lightbox-close" onClick={() => setOpenedImage(null)} aria-label="Fechar imagem">×</button>
+          {selectedMilestone.images.length > 1 && (
+            <button type="button" className="lightbox-arrow lightbox-prev" onClick={() => moveLightbox(-1)} aria-label="Imagem anterior">←</button>
+          )}
+          <figure>
+            <div className="lightbox-image-wrap">
+              <Image src={openedImage.src} alt={openedImage.alt} fill priority sizes="96vw" />
+            </div>
+            <figcaption>{openedImage.alt} · {openedIndex + 1} de {selectedMilestone.images.length}</figcaption>
+          </figure>
+          {selectedMilestone.images.length > 1 && (
+            <button type="button" className="lightbox-arrow lightbox-next" onClick={() => moveLightbox(1)} aria-label="Próxima imagem">→</button>
+          )}
+        </div>
+      )}
     </section>
   );
 }

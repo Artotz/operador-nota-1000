@@ -16,7 +16,7 @@ import {
 import { RoadmapSection } from "@/app/components/RoadmapSection";
 import machineReadings from "@/app/data/machine-readings.json";
 import { operatorAssignments, reportingPeriods } from "@/app/data/project-data";
-import { aggregateReadings, buildOperationalImpact, buildRanking, round } from "@/app/lib/analytics";
+import { aggregateReadings, buildRanking, round } from "@/app/lib/analytics";
 import type { MachineReading, MetricKey, PhaseKey, ReportingPeriod } from "@/app/lib/types";
 
 const readings = machineReadings as MachineReading[];
@@ -55,7 +55,21 @@ const metricConfig = {
     target: 80,
     lowerIsBetter: false,
   },
-} satisfies Record<MetricKey, { label: string; description: string; color: string; target: number; lowerIsBetter: boolean }>;
+  hours: {
+    label: "Horas",
+    description: "Horas totais de motor no período",
+    color: "#38bdf8",
+    target: null,
+    lowerIsBetter: false,
+  },
+} satisfies Record<MetricKey, { label: string; description: string; color: string; target: number | null; lowerIsBetter: boolean }>;
+
+const chartMetrics = [
+  "consumption",
+  "idle",
+  "productive",
+  // "hours",
+] satisfies MetricKey[];
 
 const criteria = [
   { number: "01", title: "Consumo", points: "25 pts", rule: "Abaixo de 26 l/h vale 25 pontos; redução de 5% vale 10." },
@@ -76,25 +90,32 @@ function useScrollStory() {
       (entries) => entries.forEach((entry) => entry.isIntersecting && entry.target.classList.add("is-visible")),
       { threshold: 0.13 },
     );
-    const sectionObserver = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible?.target.id) setActiveSection(visible.target.id);
-      },
-      { rootMargin: "-28% 0px -52%", threshold: [0, 0.25, 0.6] },
-    );
-
     document.querySelectorAll(".reveal").forEach((element) => revealObserver.observe(element));
-    sections.forEach(([id]) => {
-      const element = document.getElementById(id);
-      if (element) sectionObserver.observe(element);
-    });
+    const sectionElements = sections
+      .map(([id]) => document.getElementById(id))
+      .filter((element): element is HTMLElement => Boolean(element));
+
+    const updateActiveSection = () => {
+      // Observer callback entries are incremental and can omit a section while scrolling.
+      const readingPoint = window.innerHeight * 0.42;
+      let nextSection = sectionElements[0]?.id ?? "abertura";
+
+      for (const section of sectionElements) {
+        if (section.getBoundingClientRect().top > readingPoint) break;
+        nextSection = section.id;
+      }
+
+      setActiveSection((current) => current === nextSection ? current : nextSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
 
     return () => {
       revealObserver.disconnect();
-      sectionObserver.disconnect();
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
     };
   }, []);
 
@@ -103,7 +124,8 @@ function useScrollStory() {
 
 function metricValue(readingGroup: MachineReading[], metric: MetricKey) {
   if (!readingGroup.length) return null;
-  return round(aggregateReadings(readingGroup)[metric], 2);
+  const aggregated = aggregateReadings(readingGroup);
+  return round(metric === "hours" ? aggregated.engineHours : aggregated[metric], 2);
 }
 
 function buildPeriodSeries(metric: MetricKey, serial?: string) {
@@ -124,7 +146,7 @@ function buildPeriodSeries(metric: MetricKey, serial?: string) {
 function formatMetric(value: number | null, metric: MetricKey) {
   if (value === null) return "—";
   return `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${
-    metric === "consumption" ? " l/h" : "%"
+    metric === "consumption" ? " l/h" : metric === "hours" ? " h" : "%"
   }`;
 }
 
@@ -135,7 +157,7 @@ function formatHours(value: number) {
 function MetricToggle({ metric, onChange }: { metric: MetricKey; onChange: (metric: MetricKey) => void }) {
   return (
     <div className="metric-toggle" role="group" aria-label="Escolha o indicador">
-      {(Object.keys(metricConfig) as MetricKey[]).map((key) => (
+      {chartMetrics.map((key) => (
         <button
           key={key}
           type="button"
@@ -207,6 +229,7 @@ function ScoreFormula() {
     const element = ref.current;
     if (!element) return;
     let frame = 0;
+    let timer = 0;
     let started = false;
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting || started) return;
@@ -216,19 +239,27 @@ function ScoreFormula() {
         setValues(targets);
         return;
       }
-      const start = performance.now();
-      const tick = (now: number) => {
-        const progress = Math.min(1, (now - start) / 950);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setValues(targets.map((target) => Math.round(target * eased)));
-        if (progress < 1) frame = requestAnimationFrame(tick);
+      const animateStep = (step: number) => {
+        const start = performance.now();
+        const tick = (now: number) => {
+          const progress = Math.min(1, (now - start) / 620);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          setValues((current) => current.map((value, index) => index === step ? Math.round(targets[step] * eased) : value));
+          if (progress < 1) {
+            frame = requestAnimationFrame(tick);
+          } else if (step < targets.length - 1) {
+            timer = window.setTimeout(() => animateStep(step + 1), 180);
+          }
+        };
+        frame = requestAnimationFrame(tick);
       };
-      frame = requestAnimationFrame(tick);
-    }, { threshold: 0.55 });
+      animateStep(0);
+    }, { threshold: 0.72, rootMargin: "-24% 0px -24%" });
     observer.observe(element);
     return () => {
       observer.disconnect();
       cancelAnimationFrame(frame);
+      clearTimeout(timer);
     };
   }, []);
 
@@ -273,10 +304,6 @@ function ConsolidatedSection() {
   const first = available[0]?.value ?? 0;
   const latest = available.at(-1)?.value ?? 0;
   const improvement = config.lowerIsBetter ? first - latest : latest - first;
-  const operation = aggregateReadings(readings);
-  const availablePeriods = new Set(readings.map((reading) => reading.periodStart)).size;
-  const averageHoursPerMachinePeriod = operation.engineHours / readings.length;
-  const averageFleetHoursPerPeriod = operation.engineHours / availablePeriods;
 
   return (
     <section id="evolucao" className="story-section data-section">
@@ -287,11 +314,6 @@ function ConsolidatedSection() {
           text="Os dados da frota foram ponderados pelas horas efetivamente operadas para comparar períodos de intensidades diferentes."
         />
         <PeriodStrip periods={reportingPeriods} />
-        <div className="hours-kpis reveal" aria-label="Resumo das horas de operação">
-          <div><span>Horas monitoradas</span><strong>{formatHours(operation.engineHours)}</strong></div>
-          <div><span>Média da frota por quinzena</span><strong>{formatHours(averageFleetHoursPerPeriod)}</strong></div>
-          <div><span>Média por máquina / quinzena</span><strong>{formatHours(averageHoursPerMachinePeriod)}</strong></div>
-        </div>
         <div className="chart-card reveal">
           <div className="chart-card-head">
             <div>
@@ -315,7 +337,9 @@ function ConsolidatedSection() {
                 <XAxis dataKey="period" stroke="#7e8580" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
                 <YAxis stroke="#7e8580" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} domain={["auto", "auto"]} />
                 <Tooltip content={<ChartTooltip metric={metric} />} />
-                <ReferenceLine y={config.target} stroke="#f4c400" strokeDasharray="5 7" label={{ value: "Desafio", fill: "#f4c400", fontSize: 11 }} />
+                {config.target !== null && (
+                  <ReferenceLine y={config.target} stroke="#f4c400" strokeDasharray="5 7" label={{ value: "Desafio", fill: "#f4c400", fontSize: 11 }} />
+                )}
                 <Line
                   type="monotone"
                   dataKey="value"
@@ -390,15 +414,16 @@ function OperatorSection() {
                       strokeOpacity={isActive ? 1 : 0.14}
                       dot={{ r: activeSerial === assignment.serial ? 5 : 3, fill: "#111511", strokeWidth: 2 }}
                       connectNulls={false}
-                      animationDuration={750 + index * 100}
+                      isAnimationActive={false}
                     >
                       {activeSerial === assignment.serial && (
                         <LabelList
                           dataKey={assignment.alias}
                           position="top"
+                          offset={13}
                           fill={operatorColors[index]}
-                          fontSize={11}
-                          fontWeight={800}
+                          fontSize={14}
+                          fontWeight={900}
                           formatter={(value: unknown) => typeof value === "number" ? value.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : ""}
                         />
                       )}
@@ -474,7 +499,6 @@ function PodiumSection() {
 
   return (
     <section id="podio" className="story-section podium-section">
-      <div className="podium-light" aria-hidden="true" />
       <div className="section-shell">
         <SectionHeading
           eyebrow="06 — Reconhecimento"
@@ -493,15 +517,16 @@ function PodiumSection() {
             return (
               <article key={entry.serial} className={`podium-card place-${place} ${isRevealed ? "is-revealed" : ""} ${isChampion ? "is-champion" : ""}`}>
                 {isChampion && <Confetti />}
-                {isChampion && <div className="fireworks" aria-hidden="true"><i /><i /><i /></div>}
                 <span className="place-number">{place}º</span>
                 <div className="podium-machine" aria-hidden={!isRevealed}>
                   <Image src="/project-assets/brand/escavadeira.png" alt="Escavadeira do projeto" fill sizes="(max-width: 900px) 80vw, 32vw" />
                 </div>
-                <div className="podium-lock" aria-hidden="true"><span>{isRevealed ? "✓" : "?"}</span></div>
+                {!isRevealed && <div className="podium-lock" aria-hidden="true"><span>?</span></div>}
                 <div className="podium-secret">
-                  <p>{isRevealed ? entry.revealName : "Identidade protegida"}</p>
-                  <h3>{isRevealed ? entry.machine : "••••••••"}</h3>
+                  {/* <p>{isRevealed ? entry.revealName : "Identidade protegida"}</p>
+                  <h3>{isRevealed ? entry.machine : "••••••••"}</h3> */}
+                  <p>{isRevealed ? entry.revealName : ""}</p>
+                  <h3>{isRevealed ? entry.machine : ""}</h3>
                   <strong>{isRevealed ? `${entry.score} / ${entry.maximum}` : "—"}</strong>
                 </div>
                 {isRevealed && (
@@ -562,46 +587,160 @@ function PodiumSection() {
   );
 }
 
+function AnimatedEconomyValue({
+  value,
+  format,
+}: {
+  value: number;
+  format: (current: number) => string;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    let frame = 0;
+    let started = false;
+    const animate = () => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setCurrent(value);
+        return;
+      }
+      const start = performance.now();
+      const tick = (now: number) => {
+        const progress = Math.min(1, (now - start) / 820);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setCurrent(value * eased);
+        if (progress < 1) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+    };
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || started) return;
+      started = true;
+      animate();
+    }, { threshold: 0.7, rootMargin: "-18% 0px -18%" });
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [value]);
+
+  return <strong ref={ref}>{format(current)}</strong>;
+}
+
 function EconomySection() {
-  const trackedStarts = new Set(reportingPeriods.filter((period) => period.phase !== "baseline").map((period) => period.start));
-  const trackedReadings = readings.filter((reading) => trackedStarts.has(reading.periodStart));
-  const impact = buildOperationalImpact(readings, reportingPeriods, 6);
-  const consumptionReduction = impact.baseline.averageFuelRate && impact.monitoring.operatingHours
-    ? (impact.avoidedLiters / (impact.monitoring.operatingHours * impact.baseline.averageFuelRate)) * 100
-    : 0;
+  const railRef = useRef<HTMLUListElement>(null);
+  const [activeCard, setActiveCard] = useState(0);
+  const firstPeriod = reportingPeriods.find((period) => readings.some((reading) => reading.periodStart === period.start))!;
+  const lastPeriod = [...reportingPeriods].reverse().find((period) => readings.some((reading) => reading.periodStart === period.start))!;
+  const first = aggregateReadings(readings.filter((reading) => reading.periodStart === firstPeriod.start));
+  const last = aggregateReadings(readings.filter((reading) => reading.periodStart === lastPeriod.start));
+  const dieselPrice = 6.95;
+  const fuelSaved = Math.max(0, (first.consumption - last.consumption) * last.engineHours);
+  const productivityGain = last.productive - first.productive;
+  const productiveHoursGain = Math.max(0, (productivityGain / 100) * last.engineHours);
+  const comparison = `${firstPeriod.label} → ${lastPeriod.label}`;
 
   const cards = [
-    { value: `${round(impact.avoidedLiters, 0).toLocaleString("pt-BR")} L`, label: "combustível potencialmente evitado", note: "comparação com a taxa média do baseline" },
-    { value: impact.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "economia estimada em diesel", note: `referência de ${impact.dieselPricePerLiter.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} por litro` },
-    { value: formatHours(impact.monitoring.operatingHours), label: "operação acompanhada", note: `${trackedReadings.length} leituras após o baseline` },
-    { value: formatHours(impact.avoidedIdleHours), label: "ociosidade potencialmente evitada", note: `redução consolidada de ${round(consumptionReduction, 1).toLocaleString("pt-BR")}% no consumo` },
+    { value: fuelSaved, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado", note: "quanto a última janela consumiu a menos, para as mesmas horas, frente à primeira" },
+    { value: fuelSaved * dieselPrice, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "economia em diesel", note: `${round(fuelSaved, 1).toLocaleString("pt-BR")} litros × ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L` },
+    { value: productivityGain, format: (value: number) => `+${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p.`, label: "aumento de produtividade", note: `${round(first.productive, 1).toLocaleString("pt-BR")}% na primeira janela para ${round(last.productive, 1).toLocaleString("pt-BR")}% na última` },
+    { value: productiveHoursGain, format: (value: number) => `+${formatHours(value)}`, label: "aumento de horas de trabalho", note: "ganho de horas produtivas na última janela, mantendo suas horas totais" },
+    { value: 8, format: (value: number) => `${Math.round(value)} dias`, label: "acompanhamento presencial", note: "orientação prática junto aos operadores e à operação" },
   ];
+
+  const goToCard = (index: number) => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const normalizedIndex = (index + cards.length) % cards.length;
+    const card = rail.children.item(normalizedIndex) as HTMLElement | null;
+    if (!card) return;
+    if (typeof rail.scrollTo === "function") rail.scrollTo({ left: card.offsetLeft, behavior: "smooth" });
+    else rail.scrollLeft = card.offsetLeft;
+    setActiveCard(normalizedIndex);
+  };
+
+  const syncActiveCard = () => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const items = Array.from(rail.children) as HTMLElement[];
+    const closest = items.reduce((best, item, index) =>
+      Math.abs(item.offsetLeft - rail.scrollLeft) < Math.abs(items[best].offsetLeft - rail.scrollLeft) ? index : best, 0);
+    setActiveCard(closest);
+  };
 
   return (
     <section id="economias" className="story-section economy-section">
       <div className="section-shell">
         <SectionHeading
           eyebrow="07 — Valor gerado"
-          title="Eficiência que pode ser traduzida em economia."
-          text="Uma leitura executiva do impacto do acompanhamento, comparando a taxa média das duas primeiras quinzenas com os períodos monitorados depois do início do projeto."
+          title="O primeiro e o último retrato da operação."
+          text={`Resultados apurados na comparação ${comparison}, com consumo normalizado pelas horas da última janela.`}
         />
-        <ul className="economy-grid reveal">
-          {cards.map((card, index) => (
-            <li key={card.label}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{card.value}</strong>
-              <h3>{card.label}</h3>
-              <p>{card.note}</p>
-            </li>
-          ))}
-        </ul>
-        <p className="method-note reveal"><b>Metodologia:</b> estimativa técnica, não contábil. Valores positivos comparam o consumo e a ociosidade observados contra o que ocorreria mantendo as médias ponderadas do baseline.</p>
+        <div className="economy-carousel reveal">
+          <div className="economy-controls" aria-label="Navegação dos resultados">
+            <p><b>{String(activeCard + 1).padStart(2, "0")}</b> / {String(cards.length).padStart(2, "0")} <span>Arraste para passar</span></p>
+            <div><button type="button" onClick={() => goToCard(activeCard - 1)} aria-label="Card anterior">←</button><button type="button" onClick={() => goToCard(activeCard + 1)} aria-label="Próximo card">→</button></div>
+          </div>
+          <ul className="economy-grid" ref={railRef} onScroll={syncActiveCard} aria-live="polite">
+            {cards.map((card, index) => (
+              <li key={card.label} aria-label={`Resultado ${index + 1} de ${cards.length}`}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                {activeCard === index
+                  ? <AnimatedEconomyValue value={card.value} format={card.format} />
+                  : <strong>{card.format(card.value)}</strong>}
+                <h3>{card.label}</h3>
+                <p>{card.note}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="economy-pagination" role="group" aria-label="Escolha um resultado">
+            {cards.map((card, index) => <button type="button" key={card.label} className={activeCard === index ? "is-active" : ""} aria-label={`Ir para ${card.label}`} aria-pressed={activeCard === index} onClick={() => goToCard(index)}><span /></button>)}
+          </div>
+        </div>
+        <p className="method-note reveal"><b>Metodologia:</b> dados medidos na primeira e na última janela disponível. O combustível poupado aplica a diferença real de consumo em l/h às 110,6 horas da última janela, permitindo uma comparação equivalente. Diesel S10 a R$ 6,95/L, média Brasil de 26/07 a 01/08/2026 segundo a <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-sintese-semanal/2026/sintese-precos-31.pdf" target="_blank" rel="noreferrer">ANP</a>.</p>
       </div>
     </section>
   );
 }
 
+function operatorGuidance(serial: string) {
+  const assignment = operatorAssignments.find((item) => item.serial === serial)!;
+  const available = reportingPeriods.filter((period) =>
+    readings.some((reading) => reading.serial === serial && reading.periodStart === period.start),
+  );
+  const period = available.at(-1)!;
+  const latest = aggregateReadings(readings.filter((reading) => reading.serial === serial && reading.periodStart === period.start));
+  const tips: string[] = [];
+
+  if (latest.idle > 25) tips.push("Reduzir o tempo parado: desligar o motor em esperas e alinhar a frente antes de iniciar o turno.");
+  else if (latest.idle > 20) tips.push("A ociosidade está próxima da meta; pequenos cortes nas esperas podem levar o resultado ao nível máximo.");
+  else tips.push("Ociosidade dentro da meta: mantenha o planejamento da frente e a disciplina de desligamento.");
+
+  if (latest.consumption > 26) tips.push("Evitar acelerações bruscas, usar o modo de trabalho correto e reduzir movimentos improdutivos para baixar o consumo.");
+  else tips.push("Consumo dentro da meta: preserve a condução suave e compartilhe as boas práticas com a equipe.");
+
+  if (latest.productive < 75) tips.push("Rever paradas, filas e condições da frente para recuperar tempo efetivamente produtivo.");
+  else if (latest.productive < 80) tips.push("A produtividade está na faixa intermediária; eliminar pequenas interrupções aproxima o operador do desafio de 80%.");
+  else tips.push("Produtividade no nível de desafio: mantenha o ritmo com segurança e consistência.");
+
+  return { assignment, latest, period, tips };
+}
+
 function ContinuitySection() {
+  const [selectedSerial, setSelectedSerial] = useState(operatorAssignments[0].serial);
+  const guidance = operatorGuidance(selectedSerial);
+  const releaseFocusFromOtherPanel = (panel: HTMLElement) => {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && !panel.contains(focused)) focused.blur();
+  };
+
   return (
     <section id="continuidade" className="story-section continuity-section">
       <div className="section-shell">
@@ -610,23 +749,34 @@ function ContinuitySection() {
           title="O resultado vira hábito. O projeto vira próximo passo."
           text="Recomendações diretas para sustentar o que funcionou e transformar os aprendizados em uma nova frente de valor."
         />
-        <div className="continuity-grid reveal">
-          <article className="tips-card">
-            <span className="card-kicker">Para os operadores</span>
-            <h3>Continue fazendo o que move o ponteiro.</h3>
-            <ul>
-              <li><b>Antes de ligar:</b> planeje a frente e evite espera com motor em funcionamento.</li>
-              <li><b>Durante a operação:</b> use o modo correto e reduza acelerações e deslocamentos improdutivos.</li>
-              <li><b>Ao encerrar:</b> registre desvios, faça a inspeção e deixe o ativo pronto para o próximo turno.</li>
-              <li><b>Todo dia:</b> mantenha EPIs, pontualidade e boas práticas como parte da performance.</li>
-            </ul>
+        <div className="continuity-panels reveal">
+          <article className="continuity-panel tips-card" tabIndex={0} onMouseEnter={(event) => releaseFocusFromOtherPanel(event.currentTarget)}>
+            <div className="continuity-panel-closed" aria-hidden="true">
+              <span>Para os</span><strong>Operadores</strong><small>Passe o mouse ou toque para abrir</small><i>+</i>
+            </div>
+            <div className="continuity-panel-content">
+              <span className="card-kicker">Para os operadores</span>
+              <h3>Dicas sob medida para cada resultado.</h3>
+              <div className="operator-tip-selector" role="group" aria-label="Escolha um operador">
+                {operatorAssignments.map((assignment) => <button type="button" key={assignment.serial} className={selectedSerial === assignment.serial ? "is-active" : ""} onClick={() => setSelectedSerial(assignment.serial)}>{assignment.alias}</button>)}
+              </div>
+              <div className="operator-tip-summary">
+                <div><span>{guidance.assignment.revealName}</span><strong>{guidance.assignment.alias}</strong><small>{guidance.period.longLabel}</small></div>
+                <p><b>{formatMetric(guidance.latest.consumption, "consumption")}</b> consumo <b>{formatMetric(guidance.latest.idle, "idle")}</b> ociosidade <b>{formatMetric(guidance.latest.productive, "productive")}</b> produtividade</p>
+              </div>
+              <ul>{guidance.tips.map((tip, index) => <li key={tip}><b>{String(index + 1).padStart(2, "0")}</b>{tip}</li>)}</ul>
+            </div>
           </article>
-          <article className="sales-card">
-            <span className="card-kicker">Para a empresa</span>
-            <h3>O próximo ganho pode começar agora.</h3>
-            <p>Converta este diagnóstico em uma agenda contínua de capacitação, acompanhamento remoto e excelência operacional.</p>
-            <div className="service-tags"><span>Treinamentos personalizados</span><span>Monitoramento CSC</span><span>Nova edição em 2027</span><span>Consultoria operacional</span></div>
-            <a href="#parceiros">Planejar o próximo ciclo <span aria-hidden="true">↗</span></a>
+          <article className="continuity-panel sales-card" tabIndex={0} onMouseEnter={(event) => releaseFocusFromOtherPanel(event.currentTarget)}>
+            <div className="continuity-panel-closed" aria-hidden="true">
+              <span>Para a</span><strong>Empresa</strong><small>Passe o mouse ou toque para abrir</small><i>+</i>
+            </div>
+            <div className="continuity-panel-content">
+              <span className="card-kicker">Para a empresa</span>
+              <h3>O próximo ganho pode começar agora.</h3>
+              <div className="service-tags"><span>Treinamentos personalizados</span><span>Monitoramento CSC</span><span>Nova edição em 2027</span><span>Consultoria operacional</span></div>
+              <a href="#parceiros">Planejar o próximo ciclo <span aria-hidden="true">↗</span></a>
+            </div>
           </article>
         </div>
       </div>
@@ -644,7 +794,7 @@ function PartnersSection() {
     <section id="parceiros" className="story-section partners-section">
       <div className="partners-glow" aria-hidden="true" />
       <div className="section-shell reveal">
-        <p className="eyebrow">09 — Uma construção conjunta</p>
+        {/* <p className="eyebrow">09 — Uma construção conjunta</p> */}
         <h2>Com você em cada parte<br />da operação.</h2>
         <div className="logo-row">
           {partners.map((partner) => (
@@ -667,21 +817,23 @@ export function ProjectExperience() {
     <main className="project-experience">
       <StoryRail active={activeSection} />
       <section id="abertura" className="hero-section story-section">
-        <Image className="hero-photo" src="/project-assets/roadmap/visit-2/visit-2-17.jpg" alt="Equipe do projeto diante de uma escavadeira em campo" fill priority sizes="100vw" />
+        <Image className="hero-photo" src="/project-assets/hero/IMG_4736.JPG.jpeg" alt="Equipe do Projeto Operador Nota 1.000 em campo" fill priority sizes="100vw" />
         <div className="hero-overlay" />
         <div className="hero-grain" aria-hidden="true" />
         <div className="hero-partners">
-          <span>F.P. Construtora</span>
+          <Image
+            className="hero-construtora-logo"
+            src="/project-assets/brand/logo-fp-construtora.png"
+            alt="F.P. Construtora"
+            width={180}
+            height={100}
+            priority
+          />
           <Image src="/project-assets/brand/logo-csc.png" alt="CSC" width={58} height={58} priority />
         </div>
         <div className="hero-content">
-          <Image className="hero-project-logo" src="/project-assets/brand/logo-operador.png" alt="Operador Nota 1.000 — Excelência Operacional" width={238} height={238} priority />
+          <Image className="hero-project-logo" src="/project-assets/brand/logo-operador.png" alt="Operador Nota 1.000 — Excelência Operacional" width={420} height={420} priority />
           <p className="hero-eyebrow">Projeto de Excelência Operacional</p>
-          <h1>Performance que<br />{" "}deixa<br />{" "}<strong>marca na operação.</strong></h1>
-          <div className="hero-footer">
-            <p>Dados. Acompanhamento. Reconhecimento.</p>
-            <a href="#roadmap">Conheça a jornada <span aria-hidden="true">↓</span></a>
-          </div>
         </div>
       </section>
 

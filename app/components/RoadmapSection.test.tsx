@@ -31,6 +31,16 @@ describe("RoadmapSection", () => {
     expect(screen.getByText("10 registros fotográficos")).toBeInTheDocument();
   });
 
+  it("abre e fecha um registro em visualização ampliada", () => {
+    render(<RoadmapSection />);
+    fireEvent.click(screen.getByRole("button", { name: "15 A 19 JUN" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Abrir/i })[0]);
+
+    expect(screen.getByRole("dialog", { name: /Visualização ampliada/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fechar imagem" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("mostra o placeholder para o marco ainda sem registros", () => {
     render(<RoadmapSection />);
 

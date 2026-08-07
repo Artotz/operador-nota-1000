@@ -1,6 +1,6 @@
 export type PhaseKey = "baseline" | "window1" | "window2";
 
-export type MetricKey = "consumption" | "idle" | "productive";
+export type MetricKey = "consumption" | "idle" | "productive" | "hours";
 
 export type MachineReading = {
   machine: string;
