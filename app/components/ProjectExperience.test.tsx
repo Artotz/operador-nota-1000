@@ -34,12 +34,19 @@ beforeAll(() => {
 });
 
 describe("ProjectExperience", () => {
-  it("apresenta a narrativa, a quinzena pendente e somente aliases na análise", () => {
+  it("apresenta o novo hero, a quinzena pendente e somente aliases antes do pódio", () => {
     render(<ProjectExperience />);
-    expect(screen.getByRole("heading", { name: /Operador Nota 1.000/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      /Performance que deixa\s*marca na operação/i,
+    );
+    expect(screen.getByAltText("Operador Nota 1.000 — Excelência Operacional")).toBeInTheDocument();
     expect(screen.getByText("Aguardando dados da última quinzena")).toBeInTheDocument();
-    expect(screen.getAllByText("Operador 01").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Paulo César Ferreira")).not.toBeInTheDocument();
+    ["EEH-33", "EEH-34", "EEH-35", "EEH-36", "EEH-37"].forEach((alias) => {
+      expect(screen.getAllByText(alias).length).toBeGreaterThan(0);
+    });
+    ["Paulo César Ferreira", "Luciano Damaceno Ferreira", "Cristiano José de Moura", "Quitério da Silva"].forEach((name) => {
+      expect(screen.queryByText(name)).not.toBeInTheDocument();
+    });
   });
 
   it("permite alternar o indicador por botão acessível", () => {
@@ -54,16 +61,48 @@ describe("ProjectExperience", () => {
     expect(within(consolidated as HTMLElement).getByText("Tempo efetivamente trabalhando")).toBeInTheDocument();
   });
 
-  it("revela o pódio estritamente na sequência terceiro, segundo e primeiro", () => {
+  it("fixa a seleção de um operador por botão acessível", () => {
+    render(<ProjectExperience />);
+    const operatorSection = document.getElementById("operadores");
+    expect(operatorSection).not.toBeNull();
+
+    const operatorButton = within(operatorSection as HTMLElement).getByRole("button", {
+      name: /EEH-33/i,
+    });
+    expect(operatorButton).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(operatorButton);
+    expect(operatorButton).toHaveAttribute("aria-pressed", "true");
+    expect(operatorButton).toHaveTextContent("Seleção fixada");
+  });
+
+  it("revela o pódio com nomes reais, pontos inteiros e tabela apenas ao final", () => {
     render(<ProjectExperience />);
     expect(screen.getAllByText("Identidade protegida")).toHaveLength(3);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByText("Paulo César Ferreira")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Revelar 3º lugar/i }));
-    expect(screen.getAllByText("Nome a definir")).toHaveLength(1);
+    expect(screen.getByText("Paulo César Ferreira")).toBeInTheDocument();
+    expect(screen.getByText(/^\d+ \/ 100$/)).toBeInTheDocument();
+    expect(screen.queryByText("Quitério da Silva")).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: /Revelar 2º lugar/i }));
-    expect(screen.getAllByText("Nome a definir")).toHaveLength(2);
+    expect(screen.getByText("Quitério da Silva")).toBeInTheDocument();
+    expect(screen.queryByText("Luciano Damaceno Ferreira")).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: /Revelar 1º lugar/i }));
-    expect(screen.getAllByText("Nome a definir")).toHaveLength(3);
+    expect(screen.getAllByText("Luciano Damaceno Ferreira").length).toBeGreaterThan(0);
     expect(screen.getByText("Pódio revelado")).toBeInTheDocument();
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pontuação geral por operador" })).toBeInTheDocument();
+  });
+
+  it("apresenta horas, economias e o CTA de continuidade", () => {
+    render(<ProjectExperience />);
+
+    expect(screen.getByText("Horas monitoradas")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Eficiência que pode ser traduzida em economia/i })).toBeInTheDocument();
+    expect(screen.getByText("combustível potencialmente evitado")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Planejar o próximo ciclo/i })).toHaveAttribute("href", "#parceiros");
   });
 });

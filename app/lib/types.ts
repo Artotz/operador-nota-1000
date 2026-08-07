@@ -36,9 +36,9 @@ export type ReportingPeriod = {
 
 export type BehaviorScore = {
   periodId: string;
-  safety: number;
-  assetCare: number;
-  attendance: number;
+  safety: 0 | 10;
+  assetCare: 0 | 10;
+  attendance: 0 | 5;
 };
 
 export type OperatorAssignment = {
@@ -79,4 +79,24 @@ export type RankingEntry = {
   breakdown: ScoreBreakdown;
   periodScores: number[];
   position: number;
+};
+
+export type OperationalImpact = {
+  baseline: {
+    operatingHours: number;
+    averageFuelRate: number;
+    idleHours: number;
+    idleRate: number;
+  };
+  monitoring: {
+    operatingHours: number;
+    averageHoursPerPeriodMachine: number;
+    idleHours: number;
+    idleRate: number;
+    periodMachineCount: number;
+  };
+  dieselPricePerLiter: number;
+  avoidedLiters: number;
+  estimatedDieselSavings: number;
+  avoidedIdleHours: number;
 };

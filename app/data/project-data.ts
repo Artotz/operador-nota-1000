@@ -60,32 +60,52 @@ export const reportingPeriods: ReportingPeriod[] = [
 export const operatorAssignments: OperatorAssignment[] = [
   {
     serial: "1F9350PACRD000028",
-    alias: "Operador 01",
-    revealName: "Nome a definir",
-    behaviorScores: [],
+    alias: "EEH-33",
+    revealName: "Paulo César Ferreira",
+    behaviorScores: [
+      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+    ],
   },
   {
     serial: "1F9350PAERD000027",
-    alias: "Operador 02",
-    revealName: "Nome a definir",
-    behaviorScores: [],
+    alias: "EEH-34",
+    revealName: "Luciano Damaceno Ferreira",
+    behaviorScores: [
+      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+    ],
   },
   {
     serial: "1F9350PAHRD000026",
-    alias: "Operador 03",
-    revealName: "Nome a definir",
-    behaviorScores: [],
+    alias: "EEH-35",
+    revealName: "Cristiano José de Moura",
+    behaviorScores: [
+      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+    ],
   },
   {
     serial: "1F9350PACRD000031",
-    alias: "Operador 04",
-    revealName: "Nome a definir",
-    behaviorScores: [],
+    alias: "EEH-36",
+    revealName: "Paulo César Ferreira",
+    behaviorScores: [
+      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+    ],
   },
   {
     serial: "1F9350PAPRD000033",
-    alias: "Operador 05",
-    revealName: "Nome a definir",
-    behaviorScores: [],
+    alias: "EEH-37",
+    revealName: "Quitério da Silva",
+    behaviorScores: [
+      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+    ],
   },
 ];

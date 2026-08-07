@@ -1,6 +1,7 @@
 import type {
   AggregatedMetrics,
   MachineReading,
+  OperationalImpact,
   OperatorAssignment,
   RankingEntry,
   ReportingPeriod,
@@ -51,6 +52,57 @@ function average(values: number[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 }
 
+const nonNegative = (value: number) => (Number.isFinite(value) ? Math.max(0, value) : 0);
+
+export function buildOperationalImpact(
+  readings: MachineReading[],
+  periods: ReportingPeriod[],
+  dieselPricePerLiter = 6,
+): OperationalImpact {
+  const baselinePeriods = periods.filter((period) => period.phase === "baseline");
+  const monitoringPeriods = periods.filter((period) => period.phase !== "baseline");
+  const baselineReadings = readings.filter((reading) =>
+    baselinePeriods.some((period) => period.start === reading.periodStart),
+  );
+  const monitoringReadings = readings.filter((reading) =>
+    monitoringPeriods.some((period) => period.start === reading.periodStart),
+  );
+  const baseline = aggregateReadings(baselineReadings);
+  const monitoring = aggregateReadings(monitoringReadings);
+  const periodMachineCount = new Set(
+    monitoringReadings.map((reading) => `${reading.periodStart}:${reading.serial}`),
+  ).size;
+  const price = nonNegative(dieselPricePerLiter);
+  const avoidedLiters = nonNegative(
+    baseline.consumption * monitoring.engineHours - monitoring.fuelConsumed,
+  );
+  const avoidedIdleHours = nonNegative(
+    (baseline.idle / 100) * monitoring.engineHours - monitoring.idleHours,
+  );
+
+  return {
+    baseline: {
+      operatingHours: nonNegative(baseline.engineHours),
+      averageFuelRate: nonNegative(baseline.consumption),
+      idleHours: nonNegative(baseline.idleHours),
+      idleRate: nonNegative(baseline.idle),
+    },
+    monitoring: {
+      operatingHours: nonNegative(monitoring.engineHours),
+      averageHoursPerPeriodMachine: periodMachineCount
+        ? nonNegative(monitoring.engineHours / periodMachineCount)
+        : 0,
+      idleHours: nonNegative(monitoring.idleHours),
+      idleRate: nonNegative(monitoring.idle),
+      periodMachineCount,
+    },
+    dieselPricePerLiter: price,
+    avoidedLiters,
+    estimatedDieselSavings: avoidedLiters * price,
+    avoidedIdleHours,
+  };
+}
+
 export function buildRanking(
   readings: MachineReading[],
   periods: ReportingPeriod[],
@@ -61,12 +113,18 @@ export function buildRanking(
   const availableTrackedPeriods = trackedPeriods.filter((period) =>
     readings.some((reading) => reading.periodStart === period.start),
   );
-  const finalPeriodAvailable = readings.some(
-    (reading) => reading.periodStart === trackedPeriods.at(-1)?.start,
+  const scoringPeriod = availableTrackedPeriods.at(-1);
+  const finalPeriod = trackedPeriods.at(-1);
+  const finalPeriodAvailable = Boolean(finalPeriod) && assignments.every(
+    (assignment) =>
+      readings.some(
+        (reading) =>
+          reading.serial === assignment.serial && reading.periodStart === finalPeriod?.start,
+      ),
   );
   const behaviorComplete = assignments.every((assignment) =>
-    availableTrackedPeriods.every((period) =>
-      assignment.behaviorScores.some((score) => score.periodId === period.id),
+    Boolean(
+      finalPeriod && assignment.behaviorScores.some((score) => score.periodId === finalPeriod.id),
     ),
   );
   const isOfficial = Boolean(finalPeriodAvailable && behaviorComplete);
@@ -81,7 +139,7 @@ export function buildRanking(
       ),
     );
 
-    const periodBreakdowns = availableTrackedPeriods.flatMap((period) => {
+    const periodBreakdowns = scoringPeriod ? [scoringPeriod].flatMap((period) => {
       const periodReadings = readings.filter(
         (reading) =>
           reading.serial === assignment.serial && reading.periodStart === period.start,
@@ -95,9 +153,9 @@ export function buildRanking(
       const behavior = assignment.behaviorScores.find(
         (score) => score.periodId === period.id,
       );
-      const safety = isOfficial ? behavior?.safety ?? 0 : 0;
-      const assetCare = isOfficial ? behavior?.assetCare ?? 0 : 0;
-      const attendance = isOfficial ? behavior?.attendance ?? 0 : 0;
+      const safety = behavior?.safety ?? 0;
+      const assetCare = behavior?.assetCare ?? 0;
+      const attendance = behavior?.attendance ?? 0;
 
       return [
         {
@@ -114,10 +172,10 @@ export function buildRanking(
             safety +
             assetCare +
             attendance,
-          maximum: isOfficial ? (100 as const) : (75 as const),
+          maximum: 100 as const,
         },
       ];
-    });
+    }) : [];
 
     const breakdown: ScoreBreakdown = {
       consumption: average(periodBreakdowns.map((item) => item.consumption)),
@@ -127,7 +185,7 @@ export function buildRanking(
       assetCare: average(periodBreakdowns.map((item) => item.assetCare)),
       attendance: average(periodBreakdowns.map((item) => item.attendance)),
       total: average(periodBreakdowns.map((item) => item.total)),
-      maximum: isOfficial ? 100 : 75,
+      maximum: 100,
     };
 
     return {

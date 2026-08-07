@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Operador Nota 1.000 | Excelência Operacional",
   description:
-    "Entrega final do Projeto de Excelência Operacional da F. P. Construtora Ltda.",
+    "Resultados, evolução e reconhecimento do Projeto Operador Nota 1.000 da F. P. Construtora.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
