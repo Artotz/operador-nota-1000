@@ -36,12 +36,13 @@ export type ReportingPeriod = {
 
 export type BehaviorScore = {
   periodId: string;
-  safety: 0 | 10;
-  assetCare: 0 | 10;
-  attendance: 0 | 5;
+  safety: number;
+  assetCare: number;
+  attendance: number;
 };
 
 export type OperatorAssignment = {
+  operatorId: string;
   serial: string;
   alias: string;
   revealName: string;
@@ -70,7 +71,9 @@ export type ScoreBreakdown = {
 };
 
 export type RankingEntry = {
+  id: string;
   serial: string;
+  serials: string[];
   machine: string;
   alias: string;
   revealName: string;

@@ -68,38 +68,60 @@ describe("telemetryScore", () => {
 });
 
 describe("buildRanking", () => {
-  it("usa somente a ultima quinzena acompanhada, com totais inteiros de ate 100", () => {
+  it("agrupa as duas maquinas do mesmo operador e soma as avaliacoes humanas", () => {
     const result = buildRanking(readings, reportingPeriods, operatorAssignments);
     expect(result.isOfficial).toBe(false);
-    expect(result.entries).toHaveLength(5);
-    expect(new Set(result.entries.map((entry) => entry.serial)).size).toBe(5);
+    expect(result.behaviorComplete).toBe(true);
+    expect(result.missingBehaviorNames).toEqual([]);
+    expect(result.entries).toHaveLength(4);
+    expect(new Set(result.entries.map((entry) => entry.id)).size).toBe(4);
     expect(result.entries.every((entry) => entry.maximum === 100)).toBe(true);
     expect(result.entries.every((entry) => Number.isInteger(entry.score))).toBe(true);
     expect(result.entries.every((entry) => entry.periodScores.length === 1)).toBe(true);
-    expect(result.entries.every((entry) => entry.breakdown.safety === 10)).toBe(true);
-    expect(result.entries.every((entry) => entry.breakdown.assetCare === 10)).toBe(true);
-    expect(result.entries.every((entry) => entry.breakdown.attendance === 5)).toBe(true);
     expect(result.availableTrackedPeriods).toHaveLength(3);
 
     const latestPeriod = reportingPeriods.find((period) => period.id === "window-2a");
     expect(latestPeriod).toBeDefined();
     result.entries.forEach((entry) => {
+      const serials = new Set(entry.serials);
       const baseline = aggregateReadings(
         readings.filter(
           (reading) =>
-            reading.serial === entry.serial && reading.periodStart < "2026-06-14",
+            serials.has(reading.serial) && reading.periodStart < "2026-06-14",
         ),
       );
-      const latestReading = readings.find(
+      const latestReadings = readings.filter(
         (reading) =>
-          reading.serial === entry.serial && reading.periodStart === latestPeriod?.start,
+          serials.has(reading.serial) && reading.periodStart === latestPeriod?.start,
       );
-      expect(latestReading).toBeDefined();
-      const telemetry = telemetryScore(aggregateReadings([latestReading!]), baseline.consumption);
+      expect(latestReadings).toHaveLength(entry.serials.length);
+      const telemetry = telemetryScore(aggregateReadings(latestReadings), baseline.consumption);
+      const assignment = operatorAssignments.find((item) => item.operatorId === entry.id)!;
+      const behavior = assignment.behaviorScores.find((score) => score.periodId === "window-2a")!;
       expect(entry.score).toBe(
-        telemetry.consumption + telemetry.idle + telemetry.productive + 10 + 10 + 5,
+        telemetry.consumption + telemetry.idle + telemetry.productive +
+          behavior.safety + behavior.assetCare + behavior.attendance,
       );
     });
+
+    const paulo = result.entries.find((entry) => entry.id === "paulo-cesar-ferreira-de-melo");
+    const quiterio = result.entries.find((entry) => entry.id === "quiterio-de-santana-do-ipanema");
+    expect(paulo?.serials).toHaveLength(2);
+    expect(paulo?.alias).toBe("EEH-33 + EEH-36");
+    expect(quiterio?.breakdown.safety).toBe(0);
+    expect(quiterio?.breakdown.assetCare).toBe(0);
+    expect(quiterio?.breakdown.attendance).toBe(0);
+  });
+
+  it("aplica as notas do relatorio aos criterios correspondentes", () => {
+    const result = buildRanking(readings, reportingPeriods, operatorAssignments);
+    const cristiano = result.entries.find((entry) => entry.id === "cristiano-jose-de-moura");
+
+    expect(result.behaviorComplete).toBe(true);
+    expect(result.entries.every((entry) => entry.maximum === 100)).toBe(true);
+    expect(cristiano).toBeDefined();
+    expect(cristiano?.breakdown.safety).toBe(8);
+    expect(cristiano!.breakdown.assetCare + cristiano!.breakdown.attendance).toBe(15);
   });
 
   it("so se torna oficial com a ultima janela esperada e suas avaliacoes", () => {
@@ -132,6 +154,7 @@ describe("buildRanking", () => {
       completeAssignments,
     );
     expect(result.isOfficial).toBe(true);
+    expect(result.entries).toHaveLength(4);
     expect(result.entries.every((entry) => entry.maximum === 100)).toBe(true);
     expect(result.entries.every((entry) => entry.breakdown.safety === 10)).toBe(true);
   });

@@ -57,55 +57,57 @@ export const reportingPeriods: ReportingPeriod[] = [
   },
 ];
 
+// Vínculos de máquina: painel HTML legado em edu. Nomes e avaliações: relatório
+// de avaliação. A assiduidade do relatório (escala 0–10) é convertida para 0–5.
 export const operatorAssignments: OperatorAssignment[] = [
   {
+    operatorId: "paulo-cesar-ferreira-de-melo",
     serial: "1F9350PACRD000028",
     alias: "EEH-33",
-    revealName: "Paulo César Ferreira",
+    revealName: "Paulo Cesar Ferreira de Melo",
     behaviorScores: [
-      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
-      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
       { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2b", safety: 10, assetCare: 10, attendance: 5 },
     ],
   },
   {
+    operatorId: "luciano-damasceno-ferreira",
     serial: "1F9350PAERD000027",
     alias: "EEH-34",
-    revealName: "Luciano Damaceno Ferreira",
+    revealName: "Luciano Damasceno Ferreira",
     behaviorScores: [
-      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
-      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
       { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2b", safety: 10, assetCare: 10, attendance: 5 },
     ],
   },
   {
+    operatorId: "cristiano-jose-de-moura",
     serial: "1F9350PAHRD000026",
     alias: "EEH-35",
     revealName: "Cristiano José de Moura",
     behaviorScores: [
-      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
-      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
-      { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2a", safety: 8, assetCare: 10, attendance: 5 },
+      { periodId: "window-2b", safety: 8, assetCare: 10, attendance: 5 },
     ],
   },
   {
+    operatorId: "paulo-cesar-ferreira-de-melo",
     serial: "1F9350PACRD000031",
     alias: "EEH-36",
-    revealName: "Paulo César Ferreira",
+    revealName: "Paulo Cesar Ferreira de Melo",
     behaviorScores: [
-      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
-      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
       { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2b", safety: 10, assetCare: 10, attendance: 5 },
     ],
   },
   {
+    operatorId: "quiterio-de-santana-do-ipanema",
     serial: "1F9350PAPRD000033",
     alias: "EEH-37",
-    revealName: "Quitério da Silva",
+    revealName: "Quitério de Santana do Ipanema",
     behaviorScores: [
-      { periodId: "window-1a", safety: 10, assetCare: 10, attendance: 5 },
-      { periodId: "window-1b", safety: 10, assetCare: 10, attendance: 5 },
-      { periodId: "window-2a", safety: 10, assetCare: 10, attendance: 5 },
+      { periodId: "window-2a", safety: 0, assetCare: 0, attendance: 0 },
+      { periodId: "window-2b", safety: 0, assetCare: 0, attendance: 0 },
     ],
   },
 ];

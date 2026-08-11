@@ -496,6 +496,12 @@ function PodiumSection() {
   const topThree = ranking.entries.slice(0, 3);
   const podiumOrder = [topThree[1], topThree[0], topThree[2]].filter(Boolean);
   const revealLabels = ["Revelar 3º lugar", "Revelar 2º lugar", "Revelar 1º lugar"];
+  const pendingStatus = [
+    !ranking.finalPeriodAvailable ? "a última quinzena" : null,
+    !ranking.behaviorComplete
+      ? `a avaliação humana de ${ranking.missingBehaviorNames.join(", ")}`
+      : null,
+  ].filter(Boolean).join(" e ");
 
   return (
     <section id="podio" className="story-section podium-section">
@@ -503,11 +509,15 @@ function PodiumSection() {
         <SectionHeading
           eyebrow="06 — Reconhecimento"
           title="Chegou a hora de revelar o pódio."
-          text="A nota usa o último período disponível e aplica somente as faixas inteiras previstas: meta, desafio e critérios humanos."
+          text={ranking.behaviorComplete
+            ? "A nota usa o último período disponível e aplica somente as faixas inteiras previstas: meta, desafio e critérios humanos."
+            : "Enquanto a avaliação humana não estiver completa, a classificação usa somente os 75 pontos de telemetria do último período disponível."}
         />
         <div className="ranking-status reveal">
           <span className={ranking.isOfficial ? "official" : "provisional"}>{ranking.isOfficial ? "Classificação oficial" : "Classificação provisória"}</span>
-          <p>{ranking.isOfficial ? "Todas as janelas previstas foram recebidas." : "A última quinzena ainda está pendente; a classificação será atualizada quando os dados chegarem."}</p>
+          <p>{ranking.isOfficial
+            ? "Todas as janelas e avaliações previstas foram recebidas."
+            : `Ainda falta ${pendingStatus}; a classificação será atualizada quando os dados chegarem.`}</p>
         </div>
         <div className="podium-grid reveal" aria-live="polite">
           {podiumOrder.map((entry) => {
@@ -515,7 +525,7 @@ function PodiumSection() {
             const isRevealed = revealed >= 4 - place;
             const isChampion = place === 1 && isRevealed;
             return (
-              <article key={entry.serial} className={`podium-card place-${place} ${isRevealed ? "is-revealed" : ""} ${isChampion ? "is-champion" : ""}`}>
+              <article key={entry.id} className={`podium-card place-${place} ${isRevealed ? "is-revealed" : ""} ${isChampion ? "is-champion" : ""}`}>
                 {isChampion && <Confetti />}
                 <span className="place-number">{place}º</span>
                 <div className="podium-machine" aria-hidden={!isRevealed}>
@@ -534,9 +544,9 @@ function PodiumSection() {
                     <span>Consumo <b>{entry.breakdown.consumption}</b></span>
                     <span>Ociosidade <b>{entry.breakdown.idle}</b></span>
                     <span>Produtividade <b>{entry.breakdown.productive}</b></span>
-                    <span>Segurança <b>{entry.breakdown.safety}</b></span>
-                    <span>Cuidado <b>{entry.breakdown.assetCare}</b></span>
-                    <span>Assiduidade <b>{entry.breakdown.attendance}</b></span>
+                    <span>Segurança <b>{ranking.behaviorComplete ? entry.breakdown.safety : "—"}</b></span>
+                    <span>Cuidado <b>{ranking.behaviorComplete ? entry.breakdown.assetCare : "—"}</b></span>
+                    <span>Assiduidade <b>{ranking.behaviorComplete ? entry.breakdown.attendance : "—"}</b></span>
                   </div>
                 )}
               </article>
@@ -558,20 +568,22 @@ function PodiumSection() {
             <>
               <div className="ranking-table-head">
                 <div><span>Classificação completa</span><h3>Pontuação geral por operador</h3></div>
-                <p>Último período recebido • nota inteira de 0 a 100</p>
+                <p>Último período recebido • nota inteira de 0 a {ranking.behaviorComplete ? 100 : 75}</p>
               </div>
               <div className="table-scroll">
                 <table>
                   <thead><tr><th>Posição</th><th>Operador</th><th>Máquina</th><th>Telemetria</th><th>Humano</th><th>Total</th></tr></thead>
                   <tbody>
                     {ranking.entries.map((entry) => (
-                      <tr key={entry.serial}>
+                      <tr key={entry.id}>
                         <td><b>{entry.position}º</b></td>
                         <td>{entry.revealName}</td>
                         <td>{entry.machine}</td>
                         <td>{entry.breakdown.consumption + entry.breakdown.idle + entry.breakdown.productive} / 75</td>
-                        <td>{entry.breakdown.safety + entry.breakdown.assetCare + entry.breakdown.attendance} / 25</td>
-                        <td><strong>{entry.score} / 100</strong></td>
+                        <td>{ranking.behaviorComplete
+                          ? `${entry.breakdown.safety + entry.breakdown.assetCare + entry.breakdown.attendance} / 25`
+                          : "Pendente"}</td>
+                        <td><strong>{entry.score} / {entry.maximum}</strong></td>
                       </tr>
                     ))}
                   </tbody>

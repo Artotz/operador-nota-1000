@@ -115,6 +115,18 @@ export function buildRanking(
   );
   const scoringPeriod = availableTrackedPeriods.at(-1);
   const finalPeriod = trackedPeriods.at(-1);
+  const operatorGroups = Array.from(
+    assignments.reduce((groups, assignment) => {
+      const group = groups.get(assignment.operatorId) ?? [];
+      group.push(assignment);
+      groups.set(assignment.operatorId, group);
+      return groups;
+    }, new Map<string, OperatorAssignment[]>()),
+  ).map(([, group]) => group);
+  const behaviorFor = (group: OperatorAssignment[], periodId: string) =>
+    group.flatMap((assignment) => assignment.behaviorScores).find(
+      (score) => score.periodId === periodId,
+    );
   const finalPeriodAvailable = Boolean(finalPeriod) && assignments.every(
     (assignment) =>
       readings.some(
@@ -122,19 +134,30 @@ export function buildRanking(
           reading.serial === assignment.serial && reading.periodStart === finalPeriod?.start,
       ),
   );
-  const behaviorComplete = assignments.every((assignment) =>
-    Boolean(
-      finalPeriod && assignment.behaviorScores.some((score) => score.periodId === finalPeriod.id),
-    ),
+  const finalBehaviorComplete = Boolean(finalPeriod) && operatorGroups.every((group) =>
+    Boolean(finalPeriod && behaviorFor(group, finalPeriod.id)),
   );
-  const isOfficial = Boolean(finalPeriodAvailable && behaviorComplete);
+  const behaviorComplete = Boolean(scoringPeriod) && operatorGroups.every((group) =>
+    Boolean(scoringPeriod && behaviorFor(group, scoringPeriod.id)),
+  );
+  const missingBehaviorNames = scoringPeriod
+    ? operatorGroups
+      .filter((group) => !behaviorFor(group, scoringPeriod.id))
+      .map((group) => group[0].revealName)
+    : operatorGroups.map((group) => group[0].revealName);
+  const isOfficial = Boolean(finalPeriodAvailable && finalBehaviorComplete);
 
-  const entries = assignments.map((assignment) => {
-    const machineReading = readings.find((reading) => reading.serial === assignment.serial);
+  const entries = operatorGroups.map((group) => {
+    const primaryAssignment = group[0];
+    const serials = group.map((assignment) => assignment.serial);
+    const serialSet = new Set(serials);
+    const machines = group.map((assignment) =>
+      readings.find((reading) => reading.serial === assignment.serial)?.machine ?? assignment.alias,
+    );
     const baseline = aggregateReadings(
       readings.filter(
         (reading) =>
-          reading.serial === assignment.serial &&
+          serialSet.has(reading.serial) &&
           baselinePeriods.some((period) => period.start === reading.periodStart),
       ),
     );
@@ -142,7 +165,7 @@ export function buildRanking(
     const periodBreakdowns = scoringPeriod ? [scoringPeriod].flatMap((period) => {
       const periodReadings = readings.filter(
         (reading) =>
-          reading.serial === assignment.serial && reading.periodStart === period.start,
+          serialSet.has(reading.serial) && reading.periodStart === period.start,
       );
       if (!periodReadings.length) return [];
 
@@ -150,9 +173,7 @@ export function buildRanking(
         aggregateReadings(periodReadings),
         baseline.consumption,
       );
-      const behavior = assignment.behaviorScores.find(
-        (score) => score.periodId === period.id,
-      );
+      const behavior = behaviorComplete ? behaviorFor(group, period.id) : undefined;
       const safety = behavior?.safety ?? 0;
       const assetCare = behavior?.assetCare ?? 0;
       const attendance = behavior?.attendance ?? 0;
@@ -172,7 +193,7 @@ export function buildRanking(
             safety +
             assetCare +
             attendance,
-          maximum: 100 as const,
+          maximum: behaviorComplete ? 100 as const : 75 as const,
         },
       ];
     }) : [];
@@ -185,14 +206,16 @@ export function buildRanking(
       assetCare: average(periodBreakdowns.map((item) => item.assetCare)),
       attendance: average(periodBreakdowns.map((item) => item.attendance)),
       total: average(periodBreakdowns.map((item) => item.total)),
-      maximum: 100,
+      maximum: behaviorComplete ? 100 : 75,
     };
 
     return {
-      serial: assignment.serial,
-      machine: machineReading?.machine ?? "Equipamento a definir",
-      alias: assignment.alias,
-      revealName: assignment.revealName,
+      id: primaryAssignment.operatorId,
+      serial: primaryAssignment.serial,
+      serials,
+      machine: machines.join(" + "),
+      alias: group.map((assignment) => assignment.alias).join(" + "),
+      revealName: primaryAssignment.revealName,
       score: breakdown.total,
       maximum: breakdown.maximum,
       breakdown,
@@ -206,5 +229,12 @@ export function buildRanking(
     entry.position = index + 1;
   });
 
-  return { entries, isOfficial, availableTrackedPeriods };
+  return {
+    entries,
+    isOfficial,
+    behaviorComplete,
+    missingBehaviorNames,
+    finalPeriodAvailable,
+    availableTrackedPeriods,
+  };
 }

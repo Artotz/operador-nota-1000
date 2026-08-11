@@ -94,26 +94,28 @@ describe("ProjectExperience", () => {
     expect(operatorButton).toHaveTextContent("Seleção fixada");
   });
 
-  it("revela o pódio com nomes reais, pontos inteiros e tabela apenas ao final", () => {
+  it("revela o pódio com quatro competidores e consolida as duas máquinas de Paulo", () => {
     render(<ProjectExperience />);
     const podium = document.getElementById("podio") as HTMLElement;
     expect(podium.querySelectorAll(".podium-lock")).toHaveLength(3);
     expect(within(podium).queryByRole("table")).not.toBeInTheDocument();
-    expect(within(podium).queryByText("Paulo César Ferreira")).not.toBeInTheDocument();
+    expect(within(podium).queryByText("Paulo Cesar Ferreira de Melo")).not.toBeInTheDocument();
 
     fireEvent.click(within(podium).getByRole("button", { name: /Revelar 3º lugar/i }));
-    expect(within(podium).getByText("Paulo César Ferreira")).toBeInTheDocument();
-    expect(within(podium).getByText(/^\d+ \/ 100$/)).toBeInTheDocument();
-    expect(within(podium).queryByText("Quitério da Silva")).not.toBeInTheDocument();
-
     fireEvent.click(within(podium).getByRole("button", { name: /Revelar 2º lugar/i }));
-    expect(within(podium).getByText("Quitério da Silva")).toBeInTheDocument();
-    expect(within(podium).queryByText("Luciano Damaceno Ferreira")).not.toBeInTheDocument();
-
     fireEvent.click(within(podium).getByRole("button", { name: /Revelar 1º lugar/i }));
-    expect(within(podium).getAllByText("Luciano Damaceno Ferreira").length).toBeGreaterThan(0);
     expect(within(podium).getByText("Pódio revelado")).toBeInTheDocument();
-    expect(within(podium).getByRole("table")).toBeInTheDocument();
+    const table = within(podium).getByRole("table");
+    expect(within(table).getAllByRole("row")).toHaveLength(5);
+    expect(within(table).getByText("Paulo Cesar Ferreira de Melo")).toBeInTheDocument();
+    expect(within(table).getByText("EEH0033 + EEH0036")).toBeInTheDocument();
+    expect(within(table).getByText("Luciano Damasceno Ferreira")).toBeInTheDocument();
+    expect(within(table).getByText("Quitério de Santana do Ipanema")).toBeInTheDocument();
+    expect(within(table).getByText("0 / 25")).toBeInTheDocument();
+    expect(table.querySelectorAll("tbody td:last-child strong")).toHaveLength(4);
+    table.querySelectorAll("tbody td:last-child strong").forEach((total) => {
+      expect(total).toHaveTextContent(/^\d+ \/ 100$/);
+    });
     expect(within(podium).getByRole("heading", { name: "Pontuação geral por operador" })).toBeInTheDocument();
   });
 
