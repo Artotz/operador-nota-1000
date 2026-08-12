@@ -54,6 +54,16 @@ function average(values: number[]) {
 
 const nonNegative = (value: number) => (Number.isFinite(value) ? Math.max(0, value) : 0);
 
+function calendarDaysInclusive(start: string | null, end: string | null) {
+  if (!start || !end) return 0;
+  const startDate = new Date(`${start}T00:00:00Z`);
+  const endDate = new Date(`${end}T00:00:00Z`);
+  const difference = endDate.getTime() - startDate.getTime();
+  return Number.isFinite(difference) && difference >= 0
+    ? Math.floor(difference / 86_400_000) + 1
+    : 0;
+}
+
 export function buildOperationalImpact(
   readings: MachineReading[],
   periods: ReportingPeriod[],
@@ -67,6 +77,9 @@ export function buildOperationalImpact(
   const monitoringReadings = readings.filter((reading) =>
     monitoringPeriods.some((period) => period.start === reading.periodStart),
   );
+  const availableMonitoringPeriods = monitoringPeriods.filter((period) =>
+    monitoringReadings.some((reading) => reading.periodStart === period.start),
+  );
   const baseline = aggregateReadings(baselineReadings);
   const monitoring = aggregateReadings(monitoringReadings);
   const periodMachineCount = new Set(
@@ -79,6 +92,29 @@ export function buildOperationalImpact(
   const avoidedIdleHours = nonNegative(
     (baseline.idle / 100) * monitoring.engineHours - monitoring.idleHours,
   );
+  const monitoringStart = availableMonitoringPeriods.at(0)?.start ?? null;
+  const monitoringEnd = availableMonitoringPeriods.at(-1)?.end ?? null;
+  const observedDays = calendarDaysInclusive(monitoringStart, monitoringEnd);
+  const yearEnd = monitoringEnd ? `${monitoringEnd.slice(0, 4)}-12-31` : null;
+  const projectedDays = calendarDaysInclusive(monitoringStart, yearEnd);
+  const remainingDays = Math.max(0, projectedDays - observedDays);
+  const latestPeriod = availableMonitoringPeriods.at(-1);
+  const latestMonitoring = aggregateReadings(
+    monitoringReadings.filter((reading) => reading.periodStart === latestPeriod?.start),
+  );
+  const latestDays = calendarDaysInclusive(latestPeriod?.start ?? null, latestPeriod?.end ?? null);
+  const latestAvoidedLiters = nonNegative(
+    baseline.consumption * latestMonitoring.engineHours - latestMonitoring.fuelConsumed,
+  );
+  const latestAvoidedIdleHours = nonNegative(
+    (baseline.idle / 100) * latestMonitoring.engineHours - latestMonitoring.idleHours,
+  );
+  const projectedLiters = latestDays
+    ? avoidedLiters + (latestAvoidedLiters / latestDays) * remainingDays
+    : avoidedLiters;
+  const projectedIdleHours = latestDays
+    ? avoidedIdleHours + (latestAvoidedIdleHours / latestDays) * remainingDays
+    : avoidedIdleHours;
 
   return {
     baseline: {
@@ -95,11 +131,21 @@ export function buildOperationalImpact(
       idleHours: nonNegative(monitoring.idleHours),
       idleRate: nonNegative(monitoring.idle),
       periodMachineCount,
+      start: monitoringStart,
+      end: monitoringEnd,
+      observedDays,
     },
     dieselPricePerLiter: price,
     avoidedLiters,
     estimatedDieselSavings: avoidedLiters * price,
     avoidedIdleHours,
+    projectedThroughYearEnd: {
+      end: yearEnd,
+      days: projectedDays,
+      avoidedLiters: projectedLiters,
+      estimatedDieselSavings: projectedLiters * price,
+      avoidedIdleHours: projectedIdleHours,
+    },
   };
 }
 

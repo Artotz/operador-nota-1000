@@ -184,9 +184,24 @@ describe("buildOperationalImpact", () => {
     expect(result.monitoring.averageHoursPerPeriodMachine).toBeCloseTo(
       monitoring.engineHours / 15,
     );
+    expect(result.monitoring).toMatchObject({
+      start: "2026-06-14",
+      end: "2026-07-29",
+      observedDays: 46,
+    });
     expect(result.avoidedLiters).toBeCloseTo(expectedLiters);
     expect(result.estimatedDieselSavings).toBeCloseTo(expectedLiters * 6);
     expect(result.avoidedIdleHours).toBeCloseTo(expectedIdleHours);
+    expect(result.projectedThroughYearEnd).toMatchObject({
+      end: "2026-12-31",
+      days: 201,
+    });
+    const latest = aggregateReadings(readings.filter((reading) => reading.periodStart === "2026-07-14"));
+    const latestLiters = Math.max(0, baseline.consumption * latest.engineHours - latest.fuelConsumed);
+    const latestIdleHours = Math.max(0, (baseline.idle / 100) * latest.engineHours - latest.idleHours);
+    expect(result.projectedThroughYearEnd.avoidedLiters).toBeCloseTo(expectedLiters + (latestLiters / 16) * 155);
+    expect(result.projectedThroughYearEnd.estimatedDieselSavings).toBeCloseTo((expectedLiters + (latestLiters / 16) * 155) * 6);
+    expect(result.projectedThroughYearEnd.avoidedIdleHours).toBeCloseTo(expectedIdleHours + (latestIdleHours / 16) * 155);
   });
 
   it("nunca retorna impacto negativo e aceita preco de diesel configuravel", () => {

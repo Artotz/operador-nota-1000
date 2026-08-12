@@ -340,6 +340,11 @@ button { color: inherit; }
 .table-lock-message p { margin:0; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
 
 .economy-section { padding:130px 0; background:radial-gradient(circle at 8% 35%,rgba(132,204,22,.08),transparent 30%),linear-gradient(180deg,#090c09,#0d120d); }
+.value-timeline { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:38px 0 0; padding:0; list-style:none; border:1px solid var(--line); background:var(--line); }
+.value-timeline li { min-height:126px; padding:22px; display:flex; gap:14px; background:#101410; }
+.value-timeline span { color:var(--yellow); font-size:10px; font-weight:900; letter-spacing:.12em; }
+.value-timeline b { display:block; color:#fff; font-size:12px; text-transform:uppercase; letter-spacing:.035em; }
+.value-timeline p { margin:8px 0 0; color:var(--muted); font-size:11px; line-height:1.5; }
 .economy-carousel { margin-top:54px; }
 .economy-controls { margin:0 0 14px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .economy-controls p { margin:0; color:#707870; font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
@@ -474,6 +479,8 @@ button { color: inherit; }
   .economy-grid li { min-height:220px; padding:25px; }
   .economy-grid strong { margin-top:35px; }
   .economy-controls p span { display:none; }
+  .value-timeline { grid-template-columns:1fr; margin-top:28px; }
+  .value-timeline li { min-height:0; padding:18px; }
   .continuity-panel,.continuity-panel.tips-card,.continuity-panel.sales-card { height:132px; min-height:0; }
   .continuity-panel.tips-card:hover,.continuity-panel.tips-card:focus-within { height:690px; }
   .continuity-panel.sales-card:hover,.continuity-panel.sales-card:focus-within { height:480px; }

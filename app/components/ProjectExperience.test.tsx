@@ -119,15 +119,17 @@ describe("ProjectExperience", () => {
     expect(within(podium).getByRole("heading", { name: "Pontuação geral por operador" })).toBeInTheDocument();
   });
 
-  it("apresenta horas como indicador, resultados passáveis e dicas individuais", () => {
+  it("apresenta os acumulados e as projeções de valor gerado", () => {
     render(<ProjectExperience />);
 
     expect(screen.queryByRole("button", { name: "Horas" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /O primeiro e o último retrato da operação/i })).toBeInTheDocument();
-    expect(screen.getByText("combustível poupado")).toBeInTheDocument();
-    expect(screen.getByText("8 dias")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Valor acumulado desde o início do acompanhamento/i })).toBeInTheDocument();
+    expect(screen.getByText("combustível poupado acumulado")).toBeInTheDocument();
+    expect(screen.getByText("projeção de economia em diesel")).toBeInTheDocument();
+    expect(screen.getByText(/Referência · 14\/05 a 13\/06/i)).toBeInTheDocument();
+    expect(screen.getByText(/Acumulado medido · 14\/06 a 29\/07/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Próximo card" }));
-    expect(screen.getByRole("button", { name: "Ir para economia em diesel" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Ir para economia em diesel acumulada" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Dicas sob medida para cada resultado.")).toBeInTheDocument();
     expect(document.querySelectorAll(".continuity-panel-closed")).toHaveLength(2);
     expect(screen.getByRole("link", { name: /Planejar o próximo ciclo/i })).toHaveAttribute("href", "#parceiros");

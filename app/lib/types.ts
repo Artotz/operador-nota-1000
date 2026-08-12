@@ -97,9 +97,19 @@ export type OperationalImpact = {
     idleHours: number;
     idleRate: number;
     periodMachineCount: number;
+    start: string | null;
+    end: string | null;
+    observedDays: number;
   };
   dieselPricePerLiter: number;
   avoidedLiters: number;
   estimatedDieselSavings: number;
   avoidedIdleHours: number;
+  projectedThroughYearEnd: {
+    end: string | null;
+    days: number;
+    avoidedLiters: number;
+    estimatedDieselSavings: number;
+    avoidedIdleHours: number;
+  };
 };

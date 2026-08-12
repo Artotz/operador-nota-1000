@@ -16,7 +16,7 @@ import {
 import { RoadmapSection } from "@/app/components/RoadmapSection";
 import machineReadings from "@/app/data/machine-readings.json";
 import { operatorAssignments, reportingPeriods } from "@/app/data/project-data";
-import { aggregateReadings, buildRanking, round } from "@/app/lib/analytics";
+import { aggregateReadings, buildOperationalImpact, buildRanking, round } from "@/app/lib/analytics";
 import type { MachineReading, MetricKey, PhaseKey, ReportingPeriod } from "@/app/lib/types";
 
 const readings = machineReadings as MachineReading[];
@@ -649,22 +649,30 @@ function AnimatedEconomyValue({
 function EconomySection() {
   const railRef = useRef<HTMLUListElement>(null);
   const [activeCard, setActiveCard] = useState(0);
-  const firstPeriod = reportingPeriods.find((period) => readings.some((reading) => reading.periodStart === period.start))!;
-  const lastPeriod = [...reportingPeriods].reverse().find((period) => readings.some((reading) => reading.periodStart === period.start))!;
-  const first = aggregateReadings(readings.filter((reading) => reading.periodStart === firstPeriod.start));
-  const last = aggregateReadings(readings.filter((reading) => reading.periodStart === lastPeriod.start));
   const dieselPrice = 6.95;
-  const fuelSaved = Math.max(0, (first.consumption - last.consumption) * last.engineHours);
-  const productivityGain = last.productive - first.productive;
-  const productiveHoursGain = Math.max(0, (productivityGain / 100) * last.engineHours);
-  const comparison = `${firstPeriod.label} → ${lastPeriod.label}`;
+  const impact = buildOperationalImpact(readings, reportingPeriods, dieselPrice);
+  const productivityGain = impact.baseline.idleRate - impact.monitoring.idleRate;
+  const monitoringLabel = impact.monitoring.start && impact.monitoring.end
+    ? `${impact.monitoring.start.slice(8, 10)}/${impact.monitoring.start.slice(5, 7)} a ${impact.monitoring.end.slice(8, 10)}/${impact.monitoring.end.slice(5, 7)}`
+    : "período disponível";
+  const projectionLabel = impact.projectedThroughYearEnd.end
+    ? `até ${impact.projectedThroughYearEnd.end.slice(8, 10)}/${impact.projectedThroughYearEnd.end.slice(5, 7)}`
+    : "até o fim do ano";
+  const baselinePeriods = reportingPeriods.filter((period) => period.phase === "baseline");
+  const latestPeriod = reportingPeriods.find((period) => period.end === impact.monitoring.end);
+  const referenceLabel = baselinePeriods.length
+    ? `${baselinePeriods[0].longLabel.split(" a ")[0]} a ${baselinePeriods.at(-1)?.longLabel.split(" a ").at(-1)}`
+    : "duas primeiras quinzenas";
+  const latestResultLabel = latestPeriod?.longLabel ?? "última quinzena disponível";
 
   const cards = [
-    { value: fuelSaved, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado", note: "quanto a última janela consumiu a menos, para as mesmas horas, frente à primeira" },
-    { value: fuelSaved * dieselPrice, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "economia em diesel", note: `${round(fuelSaved, 1).toLocaleString("pt-BR")} litros × ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L` },
-    { value: productivityGain, format: (value: number) => `+${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p.`, label: "aumento de produtividade", note: `${round(first.productive, 1).toLocaleString("pt-BR")}% na primeira janela para ${round(last.productive, 1).toLocaleString("pt-BR")}% na última` },
-    { value: productiveHoursGain, format: (value: number) => `+${formatHours(value)}`, label: "aumento de horas de trabalho", note: "ganho de horas produtivas na última janela, mantendo suas horas totais" },
-    { value: 8, format: (value: number) => `${Math.round(value)} dias`, label: "acompanhamento presencial", note: "orientação prática junto aos operadores e à operação" },
+    { value: impact.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado acumulado", note: `litros não consumidos entre ${monitoringLabel}, comparados ao consumo de referência` },
+    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "economia em diesel acumulada", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L` },
+    { value: impact.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "horas produtivas geradas", note: "horas que deixaram de ser ociosas e ficaram disponíveis para produzir no período acumulado" },
+    { value: impact.projectedThroughYearEnd.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} L`, label: "projeção de combustível poupado", note: `acumulado estimado ${projectionLabel}: resultado atual + desempenho de ${latestResultLabel}` },
+    { value: impact.projectedThroughYearEnd.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "projeção de economia em diesel", note: `valor estimado ${projectionLabel}, se o desempenho de ${latestResultLabel} continuar` },
+    { value: impact.projectedThroughYearEnd.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "projeção de horas produtivas", note: `horas acumuladas estimadas ${projectionLabel}, mantendo o desempenho de ${latestResultLabel}` },
+    { value: productivityGain, format: (value: number) => `${value >= 0 ? "+" : ""}${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p.`, label: "ganho médio de produtividade", note: "variação da parcela de horas realmente produtivas. É uma taxa, portanto não deve ser somada nem projetada" },
   ];
 
   const goToCard = (index: number) => {
@@ -692,9 +700,14 @@ function EconomySection() {
       <div className="section-shell">
         <SectionHeading
           eyebrow="07 — Valor gerado"
-          title="O primeiro e o último retrato da operação."
-          text={`Resultados apurados na comparação ${comparison}, com consumo normalizado pelas horas da última janela.`}
+          title="Valor acumulado desde o início do acompanhamento."
+          text="Veja abaixo o que já foi medido e o que pode ser alcançado até dezembro, sempre comparando a operação com o seu ponto de partida."
         />
+        <ol className="value-timeline reveal" aria-label="Datas usadas nos cálculos de valor gerado">
+          <li><span>01</span><div><b>Referência · {referenceLabel}</b><p>Mostra o consumo e a ociosidade antes do acompanhamento. Ela é a régua de comparação, não entra na soma.</p></div></li>
+          <li><span>02</span><div><b>Acumulado medido · {monitoringLabel}</b><p>Soma todas as quinzenas com dados após a referência. É o valor já gerado de fato.</p></div></li>
+          <li><span>03</span><div><b>Projeção · {projectionLabel}</b><p>Parte do acumulado medido e repete o desempenho da última quinzena ({latestResultLabel}). É uma estimativa, não um resultado realizado.</p></div></li>
+        </ol>
         <div className="economy-carousel reveal">
           <div className="economy-controls" aria-label="Navegação dos resultados">
             <p><b>{String(activeCard + 1).padStart(2, "0")}</b> / {String(cards.length).padStart(2, "0")} <span>Arraste para passar</span></p>
@@ -716,7 +729,7 @@ function EconomySection() {
             {cards.map((card, index) => <button type="button" key={card.label} className={activeCard === index ? "is-active" : ""} aria-label={`Ir para ${card.label}`} aria-pressed={activeCard === index} onClick={() => goToCard(index)}><span /></button>)}
           </div>
         </div>
-        <p className="method-note reveal"><b>Metodologia:</b> dados medidos na primeira e na última janela disponível. O combustível poupado aplica a diferença real de consumo em l/h às 110,6 horas da última janela, permitindo uma comparação equivalente. Diesel S10 a R$ 6,95/L, média Brasil de 26/07 a 01/08/2026 segundo a <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-sintese-semanal/2026/sintese-precos-31.pdf" target="_blank" rel="noreferrer">ANP</a>.</p>
+        <p className="method-note reveal"><b>Como calculamos:</b> para cada hora trabalhada após 14/06, estimamos quanto seria consumido e quanto tempo ficaria ocioso se a operação mantivesse a referência de 14/05 a 13/06. A diferença é o valor gerado. Para a projeção, o acumulado atual recebe o mesmo ganho diário observado em {latestResultLabel}, até 31/12. O diesel foi precificado em R$ 6,95/L — média Brasil de 26/07 a 01/08/2026, segundo a <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-sintese-semanal/2026/sintese-precos-31.pdf" target="_blank" rel="noreferrer">ANP</a>.</p>
       </div>
     </section>
   );
