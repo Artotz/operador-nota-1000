@@ -34,12 +34,14 @@ beforeAll(() => {
 });
 
 describe("ProjectExperience", () => {
-  it("apresenta o novo hero, a quinzena pendente e os aliases dos operadores", () => {
+  it("apresenta o novo hero, o ciclo completo e os aliases dos operadores", () => {
     render(<ProjectExperience />);
     expect(screen.getByAltText("Operador Nota 1.000 — Excelência Operacional")).toBeInTheDocument();
     expect(screen.getByAltText("Equipe do Projeto Operador Nota 1.000 em campo")).toHaveAttribute("src", "/project-assets/hero/IMG_4736.JPG.jpeg");
     expect(screen.queryByText(/Performance que/i)).not.toBeInTheDocument();
-    expect(screen.getByText("Aguardando dados da última quinzena")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Seis quinzenas. Uma operação em movimento." })).toBeInTheDocument();
+    expect(screen.queryByText("Dados da última quinzena recebidos")).not.toBeInTheDocument();
+    expect(screen.queryByText("Classificação oficial")).not.toBeInTheDocument();
     ["EEH-33", "EEH-34", "EEH-35", "EEH-36", "EEH-37"].forEach((alias) => {
       expect(screen.getAllByText(alias).length).toBeGreaterThan(0);
     });
@@ -52,9 +54,17 @@ describe("ProjectExperience", () => {
     const productivityButton = within(consolidated as HTMLElement).getByRole("button", {
       name: "Produtividade",
     });
+    expect(within(consolidated as HTMLElement).getByText("Média do período")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("Ganho médio no período")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("28,7 l/h")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("+1,1 l/h")).toBeInTheDocument();
     fireEvent.click(productivityButton);
     expect(productivityButton).toHaveAttribute("aria-pressed", "true");
     expect(within(consolidated as HTMLElement).getByText("Tempo efetivamente trabalhando")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("Último registro")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("Ganho no período")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("80,6%")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("+8,1%")).toBeInTheDocument();
   });
 
   it("updates the section rail from the scroll position", () => {
@@ -86,7 +96,7 @@ describe("ProjectExperience", () => {
     expect(operatorSection).not.toBeNull();
 
     const operatorButton = within(operatorSection as HTMLElement).getByRole("button", {
-      name: /EEH-33/i,
+      name: /Paulo Cesar Ferreira de Melo/i,
     });
     expect(operatorButton).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(operatorButton);
@@ -127,11 +137,31 @@ describe("ProjectExperience", () => {
     expect(screen.getByText("combustível poupado acumulado")).toBeInTheDocument();
     expect(screen.getByText("projeção de economia em diesel")).toBeInTheDocument();
     expect(screen.getByText(/Referência · 14\/05 a 13\/06/i)).toBeInTheDocument();
-    expect(screen.getByText(/Acumulado medido · 14\/06 a 29\/07/i)).toBeInTheDocument();
+    expect(screen.getByText(/Acumulado medido · 14\/06 a 13\/08/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Próximo card" }));
     expect(screen.getByRole("button", { name: "Ir para economia em diesel acumulada" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Dicas sob medida para cada resultado.")).toBeInTheDocument();
-    expect(document.querySelectorAll(".continuity-panel-closed")).toHaveLength(2);
+    expect(document.querySelectorAll(".continuity-panel-closed")).toHaveLength(3);
     expect(screen.getByRole("link", { name: /Planejar o próximo ciclo/i })).toHaveAttribute("href", "#parceiros");
+  });
+
+  it("separa os cuidados por equipamento e amplia os registros fotográficos", () => {
+    render(<ProjectExperience />);
+    const continuity = document.getElementById("continuidade") as HTMLElement;
+
+    expect(within(continuity).getByText("Dentes em dia. Radiador limpo. Máquina pronta.")).toBeInTheDocument();
+    expect(within(continuity).getByText("Troca dos dentes da caçamba")).toBeInTheDocument();
+    expect(within(continuity).getByText("Limpeza do radiador")).toBeInTheDocument();
+
+    fireEvent.click(within(continuity).getByRole("button", { name: "EEH-34" }));
+    expect(within(continuity).getByText("4 registros · clique para ampliar")).toBeInTheDocument();
+    fireEvent.click(within(continuity).getByRole("button", { name: "Ampliar registro 1 do EEH-34" }));
+
+    const dialog = within(continuity).getByRole("dialog", { name: /equipamento EEH-34/i });
+    expect(within(dialog).getByAltText("EEH-34 — registro de inspeção 1")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Próxima imagem" }));
+    expect(within(dialog).getByText("EEH-34 · registro 2 de 4")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Fechar imagem" }));
+    expect(within(continuity).queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

@@ -82,6 +82,38 @@ const criteria = [
 
 const operatorColors = ["#f4c400", "#38bdf8", "#fb7185", "#a3e635", "#c084fc"];
 
+type OperatorParticipant = {
+  id: string;
+  name: string;
+  serials: string[];
+};
+
+const operatorParticipants = operatorAssignments.reduce<OperatorParticipant[]>((participants, assignment) => {
+  const participant = participants.find((item) => item.id === assignment.operatorId);
+  if (participant) participant.serials.push(assignment.serial);
+  else participants.push({ id: assignment.operatorId, name: assignment.revealName, serials: [assignment.serial] });
+  return participants;
+}, []);
+
+const equipmentImageCounts = {
+  "EEH-33": 5,
+  "EEH-34": 4,
+  "EEH-35": 3,
+  "EEH-36": 6,
+  "EEH-37": 5,
+} as const;
+
+type EquipmentAlias = keyof typeof equipmentImageCounts;
+type EquipmentCareImage = { src: string; alt: string };
+
+const equipmentCareRecords = (Object.entries(equipmentImageCounts) as [EquipmentAlias, number][]).map(([alias, count]) => ({
+  alias,
+  images: Array.from({ length: count }, (_, index): EquipmentCareImage => ({
+    src: `/project-assets/equipment-care/${alias}/${alias.toLowerCase()}-${String(index + 1).padStart(2, "0")}.jpg`,
+    alt: `${alias} — registro de inspeção ${index + 1}`,
+  })),
+}));
+
 function useScrollStory() {
   const [activeSection, setActiveSection] = useState("abertura");
 
@@ -300,17 +332,24 @@ function ConsolidatedSection() {
   const [metric, setMetric] = useState<MetricKey>("consumption");
   const series = useMemo(() => buildPeriodSeries(metric), [metric]);
   const config = metricConfig[metric];
+  const baselineStarts = new Set(reportingPeriods.filter((period) => period.phase === "baseline").map((period) => period.start));
+  const evaluationStarts = new Set(reportingPeriods.filter((period) => period.phase !== "baseline").map((period) => period.start));
+  const baselineAverage = metricValue(readings.filter((reading) => baselineStarts.has(reading.periodStart)), metric) ?? 0;
+  const periodAverage = metricValue(readings.filter((reading) => evaluationStarts.has(reading.periodStart)), metric) ?? 0;
   const available = series.filter((item) => item.value !== null);
   const first = available[0]?.value ?? 0;
   const latest = available.at(-1)?.value ?? 0;
-  const improvement = config.lowerIsBetter ? first - latest : latest - first;
+  const usesPeriodAverage = metric === "consumption";
+  const startValue = usesPeriodAverage ? baselineAverage : first;
+  const endValue = usesPeriodAverage ? periodAverage : latest;
+  const improvement = config.lowerIsBetter ? startValue - endValue : endValue - startValue;
 
   return (
     <section id="evolucao" className="story-section data-section">
       <div className="section-shell">
         <SectionHeading
           eyebrow="04 — Evolução consolidada"
-          title="Cinco quinzenas. Uma operação em movimento."
+          title="Seis quinzenas. Uma operação em movimento."
           text="Os dados da frota foram ponderados pelas horas efetivamente operadas para comparar períodos de intensidades diferentes."
         />
         <PeriodStrip periods={reportingPeriods} />
@@ -324,10 +363,10 @@ function ConsolidatedSection() {
             <MetricToggle metric={metric} onChange={setMetric} />
           </div>
           <div className="chart-summary">
-            <div><span>Início</span><strong>{formatMetric(first, metric)}</strong></div>
-            <div><span>Último registro</span><strong>{formatMetric(latest, metric)}</strong></div>
+            <div><span>Início</span><strong>{formatMetric(startValue, metric)}</strong></div>
+            <div><span>{usesPeriodAverage ? "Média do período" : "Último registro"}</span><strong>{formatMetric(endValue, metric)}</strong></div>
             <div className={improvement >= 0 ? "positive" : "negative"}>
-              <span>Ganho no período</span><strong>{improvement >= 0 ? "+" : ""}{formatMetric(improvement, metric)}</strong>
+              <span>{usesPeriodAverage ? "Ganho médio no período" : "Ganho no período"}</span><strong>{improvement >= 0 ? "+" : ""}{formatMetric(improvement, metric)}</strong>
             </div>
           </div>
           <div className="main-chart" aria-label={`Gráfico consolidado de ${config.label}`}>
@@ -354,10 +393,6 @@ function ConsolidatedSection() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <div className="pending-period">
-            <span className="pulse-dot" />
-            <div><b>30 jul–13 ago</b><p>Aguardando dados da última quinzena</p></div>
-          </div>
         </div>
       </div>
     </section>
@@ -366,17 +401,19 @@ function ConsolidatedSection() {
 
 function OperatorSection() {
   const [metric, setMetric] = useState<MetricKey>("idle");
-  const [pinnedSerial, setPinnedSerial] = useState<string | null>(null);
-  const [hoveredSerial, setHoveredSerial] = useState<string | null>(null);
-  const activeSerial = pinnedSerial ?? hoveredSerial;
+  const [pinnedOperator, setPinnedOperator] = useState<string | null>(null);
+  const [hoveredOperator, setHoveredOperator] = useState<string | null>(null);
+  const activeOperator = pinnedOperator ?? hoveredOperator;
   const availablePeriodStarts = new Set(readings.map((reading) => reading.periodStart));
   const latestPeriod = reportingPeriods.filter((period) => availablePeriodStarts.has(period.start)).at(-1);
 
   const chartData = reportingPeriods.map((period) => {
     const row: Record<string, string | number | null> = { period: period.label };
-    operatorAssignments.forEach((assignment) => {
-      const matches = readings.filter((reading) => reading.periodStart === period.start && reading.serial === assignment.serial);
-      row[assignment.alias] = metricValue(matches, metric);
+    operatorParticipants.forEach((participant) => {
+      const matches = readings.filter((reading) =>
+        reading.periodStart === period.start && participant.serials.includes(reading.serial),
+      );
+      row[participant.id] = metricValue(matches, metric);
     });
     return row;
   });
@@ -387,7 +424,7 @@ function OperatorSection() {
         <SectionHeading
           eyebrow="05 — Visão individual"
           title="Cada linha conta uma história de evolução."
-          text="Passe o mouse para destacar uma máquina. Clique em um cartão para fixar a seleção, comparar a série e revelar os valores sobre cada ponto."
+          text="Passe o mouse para destacar um operador. Clique em um cartão para fixar a seleção, comparar a série e revelar os valores sobre cada ponto."
         />
         <div className="operator-dashboard reveal">
           <div className="operator-toolbar">
@@ -401,24 +438,24 @@ function OperatorSection() {
                 <XAxis dataKey="period" stroke="#7e8580" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                 <YAxis stroke="#7e8580" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} domain={["auto", "auto"]} />
                 <Tooltip content={<ChartTooltip metric={metric} />} />
-                {operatorAssignments.map((assignment, index) => {
-                  const isActive = !activeSerial || activeSerial === assignment.serial;
+                {operatorParticipants.map((participant, index) => {
+                  const isActive = !activeOperator || activeOperator === participant.id;
                   return (
                     <Line
-                      key={assignment.alias}
+                      key={participant.id}
                       type="monotone"
-                      dataKey={assignment.alias}
-                      name={assignment.alias}
+                      dataKey={participant.id}
+                      name={participant.name}
                       stroke={operatorColors[index]}
-                      strokeWidth={activeSerial === assignment.serial ? 4 : 2.5}
+                      strokeWidth={activeOperator === participant.id ? 4 : 2.5}
                       strokeOpacity={isActive ? 1 : 0.14}
-                      dot={{ r: activeSerial === assignment.serial ? 5 : 3, fill: "#111511", strokeWidth: 2 }}
+                      dot={{ r: activeOperator === participant.id ? 5 : 3, fill: "#111511", strokeWidth: 2 }}
                       connectNulls={false}
                       isAnimationActive={false}
                     >
-                      {activeSerial === assignment.serial && (
+                      {activeOperator === participant.id && (
                         <LabelList
-                          dataKey={assignment.alias}
+                          dataKey={participant.id}
                           position="top"
                           offset={13}
                           fill={operatorColors[index]}
@@ -434,30 +471,30 @@ function OperatorSection() {
             </ResponsiveContainer>
           </div>
           <div className="operator-selector" role="group" aria-label="Selecionar operador para comparação">
-            {operatorAssignments.map((assignment, index) => {
+            {operatorParticipants.map((participant, index) => {
               const latestReadings = latestPeriod
-                ? readings.filter((reading) => reading.serial === assignment.serial && reading.periodStart === latestPeriod.start)
+                ? readings.filter((reading) => participant.serials.includes(reading.serial) && reading.periodStart === latestPeriod.start)
                 : [];
               const latest = metricValue(latestReadings, metric);
               const latestHours = latestReadings.length ? aggregateReadings(latestReadings).engineHours : 0;
               const trackedStarts = new Set(reportingPeriods.filter((period) => period.phase !== "baseline").map((period) => period.start));
-              const trackedHours = aggregateReadings(readings.filter((reading) => reading.serial === assignment.serial && trackedStarts.has(reading.periodStart))).engineHours;
-              const isPinned = pinnedSerial === assignment.serial;
-              const isFaded = Boolean(activeSerial && activeSerial !== assignment.serial);
+              const trackedHours = aggregateReadings(readings.filter((reading) => participant.serials.includes(reading.serial) && trackedStarts.has(reading.periodStart))).engineHours;
+              const isPinned = pinnedOperator === participant.id;
+              const isFaded = Boolean(activeOperator && activeOperator !== participant.id);
               return (
                 <button
                   type="button"
-                  key={assignment.serial}
+                  key={participant.id}
                   className={`${isPinned ? "is-pinned" : ""} ${isFaded ? "is-faded" : ""}`}
                   aria-pressed={isPinned}
-                  onMouseEnter={() => setHoveredSerial(assignment.serial)}
-                  onMouseLeave={() => setHoveredSerial(null)}
-                  onFocus={() => setHoveredSerial(assignment.serial)}
-                  onBlur={() => setHoveredSerial(null)}
-                  onClick={() => setPinnedSerial((current) => current === assignment.serial ? null : assignment.serial)}
+                  onMouseEnter={() => setHoveredOperator(participant.id)}
+                  onMouseLeave={() => setHoveredOperator(null)}
+                  onFocus={() => setHoveredOperator(participant.id)}
+                  onBlur={() => setHoveredOperator(null)}
+                  onClick={() => setPinnedOperator((current) => current === participant.id ? null : participant.id)}
                 >
                   <i style={{ backgroundColor: operatorColors[index] }} />
-                  <span>{assignment.alias}</span>
+                  <span>{participant.name}</span>
                   <strong>{formatMetric(latest, metric)}</strong>
                   <small>{formatHours(latestHours)} na última quinzena</small>
                   <small>{formatHours(trackedHours)} acompanhadas</small>
@@ -496,13 +533,6 @@ function PodiumSection() {
   const topThree = ranking.entries.slice(0, 3);
   const podiumOrder = [topThree[1], topThree[0], topThree[2]].filter(Boolean);
   const revealLabels = ["Revelar 3º lugar", "Revelar 2º lugar", "Revelar 1º lugar"];
-  const pendingStatus = [
-    !ranking.finalPeriodAvailable ? "a última quinzena" : null,
-    !ranking.behaviorComplete
-      ? `a avaliação humana de ${ranking.missingBehaviorNames.join(", ")}`
-      : null,
-  ].filter(Boolean).join(" e ");
-
   return (
     <section id="podio" className="story-section podium-section">
       <div className="section-shell">
@@ -513,12 +543,6 @@ function PodiumSection() {
             ? "A nota usa o último período disponível e aplica somente as faixas inteiras previstas: meta, desafio e critérios humanos."
             : "Enquanto a avaliação humana não estiver completa, a classificação usa somente os 75 pontos de telemetria do último período disponível."}
         />
-        <div className="ranking-status reveal">
-          <span className={ranking.isOfficial ? "official" : "provisional"}>{ranking.isOfficial ? "Classificação oficial" : "Classificação provisória"}</span>
-          <p>{ranking.isOfficial
-            ? "Todas as janelas e avaliações previstas foram recebidas."
-            : `Ainda falta ${pendingStatus}; a classificação será atualizada quando os dados chegarem.`}</p>
-        </div>
         <div className="podium-grid reveal" aria-live="polite">
           {podiumOrder.map((entry) => {
             const place = entry.position;
@@ -651,7 +675,7 @@ function EconomySection() {
   const [activeCard, setActiveCard] = useState(0);
   const dieselPrice = 6.95;
   const impact = buildOperationalImpact(readings, reportingPeriods, dieselPrice);
-  const productivityGain = impact.baseline.idleRate - impact.monitoring.idleRate;
+  // const productivityGain = impact.baseline.idleRate - impact.monitoring.idleRate;
   const monitoringLabel = impact.monitoring.start && impact.monitoring.end
     ? `${impact.monitoring.start.slice(8, 10)}/${impact.monitoring.start.slice(5, 7)} a ${impact.monitoring.end.slice(8, 10)}/${impact.monitoring.end.slice(5, 7)}`
     : "período disponível";
@@ -659,20 +683,19 @@ function EconomySection() {
     ? `até ${impact.projectedThroughYearEnd.end.slice(8, 10)}/${impact.projectedThroughYearEnd.end.slice(5, 7)}`
     : "até o fim do ano";
   const baselinePeriods = reportingPeriods.filter((period) => period.phase === "baseline");
-  const latestPeriod = reportingPeriods.find((period) => period.end === impact.monitoring.end);
   const referenceLabel = baselinePeriods.length
     ? `${baselinePeriods[0].longLabel.split(" a ")[0]} a ${baselinePeriods.at(-1)?.longLabel.split(" a ").at(-1)}`
     : "duas primeiras quinzenas";
-  const latestResultLabel = latestPeriod?.longLabel ?? "última quinzena disponível";
 
   const cards = [
     { value: impact.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado acumulado", note: `litros não consumidos entre ${monitoringLabel}, comparados ao consumo de referência` },
     { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "economia em diesel acumulada", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L` },
     { value: impact.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "horas produtivas geradas", note: "horas que deixaram de ser ociosas e ficaram disponíveis para produzir no período acumulado" },
-    { value: impact.projectedThroughYearEnd.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} L`, label: "projeção de combustível poupado", note: `acumulado estimado ${projectionLabel}: resultado atual + desempenho de ${latestResultLabel}` },
-    { value: impact.projectedThroughYearEnd.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "projeção de economia em diesel", note: `valor estimado ${projectionLabel}, se o desempenho de ${latestResultLabel} continuar` },
-    { value: impact.projectedThroughYearEnd.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "projeção de horas produtivas", note: `horas acumuladas estimadas ${projectionLabel}, mantendo o desempenho de ${latestResultLabel}` },
-    { value: productivityGain, format: (value: number) => `${value >= 0 ? "+" : ""}${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p.`, label: "ganho médio de produtividade", note: "variação da parcela de horas realmente produtivas. É uma taxa, portanto não deve ser somada nem projetada" },
+    { value: impact.projectedThroughYearEnd.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} L`, label: "projeção de combustível poupado", note: `acumulado estimado ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
+    { value: impact.projectedThroughYearEnd.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "projeção de economia em diesel", note: `valor estimado ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
+    { value: impact.projectedThroughYearEnd.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "projeção de horas produtivas", note: `horas acumuladas estimadas ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
+    // { value: productivityGain, format: (value: number) => `${value >= 0 ? "+" : ""}${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p.`, label: "ganho médio de produtividade", note: "variação da parcela de horas realmente produtivas. É uma taxa, portanto não deve ser somada nem projetada" },
+    { value: 8, format: (value: number) => `${Math.round(value)} dias`, label: "acompanhamento da operação", note: "presença em campo para observar a rotina, orientar a equipe e consolidar boas práticas" },
   ];
 
   const goToCard = (index: number) => {
@@ -706,7 +729,7 @@ function EconomySection() {
         <ol className="value-timeline reveal" aria-label="Datas usadas nos cálculos de valor gerado">
           <li><span>01</span><div><b>Referência · {referenceLabel}</b><p>Mostra o consumo e a ociosidade antes do acompanhamento. Ela é a régua de comparação, não entra na soma.</p></div></li>
           <li><span>02</span><div><b>Acumulado medido · {monitoringLabel}</b><p>Soma todas as quinzenas com dados após a referência. É o valor já gerado de fato.</p></div></li>
-          <li><span>03</span><div><b>Projeção · {projectionLabel}</b><p>Parte do acumulado medido e repete o desempenho da última quinzena ({latestResultLabel}). É uma estimativa, não um resultado realizado.</p></div></li>
+          <li><span>03</span><div><b>Projeção · {projectionLabel}</b><p>Parte do acumulado medido e mantém a média diária de todo o período avaliado ({monitoringLabel}). É uma estimativa, não um resultado realizado.</p></div></li>
         </ol>
         <div className="economy-carousel reveal">
           <div className="economy-controls" aria-label="Navegação dos resultados">
@@ -729,19 +752,21 @@ function EconomySection() {
             {cards.map((card, index) => <button type="button" key={card.label} className={activeCard === index ? "is-active" : ""} aria-label={`Ir para ${card.label}`} aria-pressed={activeCard === index} onClick={() => goToCard(index)}><span /></button>)}
           </div>
         </div>
-        <p className="method-note reveal"><b>Como calculamos:</b> para cada hora trabalhada após 14/06, estimamos quanto seria consumido e quanto tempo ficaria ocioso se a operação mantivesse a referência de 14/05 a 13/06. A diferença é o valor gerado. Para a projeção, o acumulado atual recebe o mesmo ganho diário observado em {latestResultLabel}, até 31/12. O diesel foi precificado em R$ 6,95/L — média Brasil de 26/07 a 01/08/2026, segundo a <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-sintese-semanal/2026/sintese-precos-31.pdf" target="_blank" rel="noreferrer">ANP</a>.</p>
+        <p className="method-note reveal"><b>Como calculamos:</b> para cada hora trabalhada após 14/06, estimamos quanto seria consumido e quanto tempo ficaria ocioso se a operação mantivesse a referência de 14/05 a 13/06. A diferença é o valor gerado. Para a projeção, dividimos o ganho acumulado pelos dias de todo o período avaliado ({monitoringLabel}) e mantemos essa média diária até 31/12. O diesel foi precificado em R$ 6,95/L — média Brasil de 26/07 a 01/08/2026, segundo a <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-sintese-semanal/2026/sintese-precos-31.pdf" target="_blank" rel="noreferrer">ANP</a>.</p>
       </div>
     </section>
   );
 }
 
-function operatorGuidance(serial: string) {
-  const assignment = operatorAssignments.find((item) => item.serial === serial)!;
+function operatorGuidance(operatorId: string) {
+  const participant = operatorParticipants.find((item) => item.id === operatorId)!;
   const available = reportingPeriods.filter((period) =>
-    readings.some((reading) => reading.serial === serial && reading.periodStart === period.start),
+    readings.some((reading) => participant.serials.includes(reading.serial) && reading.periodStart === period.start),
   );
   const period = available.at(-1)!;
-  const latest = aggregateReadings(readings.filter((reading) => reading.serial === serial && reading.periodStart === period.start));
+  const latest = aggregateReadings(readings.filter((reading) =>
+    participant.serials.includes(reading.serial) && reading.periodStart === period.start,
+  ));
   const tips: string[] = [];
 
   if (latest.idle > 25) tips.push("Reduzir o tempo parado: desligar o motor em esperas e alinhar a frente antes de iniciar o turno.");
@@ -755,15 +780,45 @@ function operatorGuidance(serial: string) {
   else if (latest.productive < 80) tips.push("A produtividade está na faixa intermediária; eliminar pequenas interrupções aproxima o operador do desafio de 80%.");
   else tips.push("Produtividade no nível de desafio: mantenha o ritmo com segurança e consistência.");
 
-  return { assignment, latest, period, tips };
+  return { participant, latest, period, tips };
 }
 
 function ContinuitySection() {
-  const [selectedSerial, setSelectedSerial] = useState(operatorAssignments[0].serial);
-  const guidance = operatorGuidance(selectedSerial);
+  const [selectedOperator, setSelectedOperator] = useState(operatorParticipants[0].id);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentAlias>(equipmentCareRecords[0].alias);
+  const [openedEquipmentImage, setOpenedEquipmentImage] = useState<EquipmentCareImage | null>(null);
+  const guidance = operatorGuidance(selectedOperator);
+  const equipmentRecord = equipmentCareRecords.find((record) => record.alias === selectedEquipment) ?? equipmentCareRecords[0];
+  const openedEquipmentIndex = openedEquipmentImage
+    ? equipmentRecord.images.findIndex((image) => image.src === openedEquipmentImage.src)
+    : -1;
   const releaseFocusFromOtherPanel = (panel: HTMLElement) => {
     const focused = document.activeElement;
     if (focused instanceof HTMLElement && !panel.contains(focused)) focused.blur();
+  };
+  const releaseFocusOnMouseLeave = (panel: HTMLElement) => {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && panel.contains(focused)) focused.blur();
+  };
+
+  useEffect(() => {
+    if (!openedEquipmentImage) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenedEquipmentImage(null);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openedEquipmentImage]);
+
+  const moveEquipmentLightbox = (direction: -1 | 1) => {
+    if (openedEquipmentIndex < 0) return;
+    const nextIndex = (openedEquipmentIndex + direction + equipmentRecord.images.length) % equipmentRecord.images.length;
+    setOpenedEquipmentImage(equipmentRecord.images[nextIndex]);
   };
 
   return (
@@ -775,7 +830,45 @@ function ContinuitySection() {
           text="Recomendações diretas para sustentar o que funcionou e transformar os aprendizados em uma nova frente de valor."
         />
         <div className="continuity-panels reveal">
-          <article className="continuity-panel tips-card" tabIndex={0} onMouseEnter={(event) => releaseFocusFromOtherPanel(event.currentTarget)}>
+          <article className="continuity-panel equipment-card" tabIndex={0} onMouseEnter={(event) => releaseFocusFromOtherPanel(event.currentTarget)} onMouseLeave={(event) => releaseFocusOnMouseLeave(event.currentTarget)}>
+            <div className="continuity-panel-closed" aria-hidden="true">
+              <span>Para os</span><strong>Equipamentos</strong><small>Passe o mouse ou toque para abrir</small><i>+</i>
+            </div>
+            <div className="continuity-panel-content">
+              <span className="card-kicker">Para os equipamentos</span>
+              <h3>Manutenção em dia, produção com garantia.</h3>
+              <ul className="equipment-checklist">
+                <li><b>01</b><div><strong>Troca dos dentes da caçamba</strong><p>Inspecione antes do turno e programe a troca ao encontrar trincas, quebras, folga ou desgaste acentuado. Imobilize o equipamento e siga o procedimento de serviço antes de intervir.</p></div></li>
+                <li><b>02</b><div><strong>Limpeza do radiador</strong><p>Com o motor desligado e frio, retire poeira e resíduos no sentido contrário ao fluxo do ar, respeitando a pressão indicada no manual e sem deformar as aletas.</p></div></li>
+              </ul>
+              <div className="equipment-tip-selector" role="group" aria-label="Escolha um equipamento">
+                {equipmentCareRecords.map((record) => (
+                  <button
+                    type="button"
+                    key={record.alias}
+                    className={selectedEquipment === record.alias ? "is-active" : ""}
+                    aria-pressed={selectedEquipment === record.alias}
+                    onClick={() => {
+                      setSelectedEquipment(record.alias);
+                      setOpenedEquipmentImage(null);
+                    }}
+                  >
+                    {record.alias}
+                  </button>
+                ))}
+              </div>
+              <div className="equipment-photo-head"><strong>{selectedEquipment}</strong><span>{equipmentRecord.images.length} registros · clique para ampliar</span></div>
+              <div className="equipment-photo-strip" aria-label={`Registros de inspeção do equipamento ${selectedEquipment}`}>
+                {equipmentRecord.images.map((image, index) => (
+                  <button type="button" key={image.src} onClick={() => setOpenedEquipmentImage(image)} aria-label={`Ampliar registro ${index + 1} do ${selectedEquipment}`}>
+                    <Image src={image.src} alt={image.alt} width={180} height={130} loading="lazy" sizes="110px" />
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </article>
+          <article className="continuity-panel tips-card" tabIndex={0} onMouseEnter={(event) => releaseFocusFromOtherPanel(event.currentTarget)} onMouseLeave={(event) => releaseFocusOnMouseLeave(event.currentTarget)}>
             <div className="continuity-panel-closed" aria-hidden="true">
               <span>Para os</span><strong>Operadores</strong><small>Passe o mouse ou toque para abrir</small><i>+</i>
             </div>
@@ -783,16 +876,16 @@ function ContinuitySection() {
               <span className="card-kicker">Para os operadores</span>
               <h3>Dicas sob medida para cada resultado.</h3>
               <div className="operator-tip-selector" role="group" aria-label="Escolha um operador">
-                {operatorAssignments.map((assignment) => <button type="button" key={assignment.serial} className={selectedSerial === assignment.serial ? "is-active" : ""} onClick={() => setSelectedSerial(assignment.serial)}>{assignment.alias}</button>)}
+                {operatorParticipants.map((participant) => <button type="button" key={participant.id} className={selectedOperator === participant.id ? "is-active" : ""} aria-pressed={selectedOperator === participant.id} onClick={() => setSelectedOperator(participant.id)}>{participant.name}</button>)}
               </div>
               <div className="operator-tip-summary">
-                <div><span>{guidance.assignment.revealName}</span><strong>{guidance.assignment.alias}</strong><small>{guidance.period.longLabel}</small></div>
+                <div><span>{guidance.participant.name}</span><strong>Resultado individual</strong><small>{guidance.period.longLabel}</small></div>
                 <p><b>{formatMetric(guidance.latest.consumption, "consumption")}</b> consumo <b>{formatMetric(guidance.latest.idle, "idle")}</b> ociosidade <b>{formatMetric(guidance.latest.productive, "productive")}</b> produtividade</p>
               </div>
               <ul>{guidance.tips.map((tip, index) => <li key={tip}><b>{String(index + 1).padStart(2, "0")}</b>{tip}</li>)}</ul>
             </div>
           </article>
-          <article className="continuity-panel sales-card" tabIndex={0} onMouseEnter={(event) => releaseFocusFromOtherPanel(event.currentTarget)}>
+          <article className="continuity-panel sales-card" tabIndex={0} onMouseEnter={(event) => releaseFocusFromOtherPanel(event.currentTarget)} onMouseLeave={(event) => releaseFocusOnMouseLeave(event.currentTarget)}>
             <div className="continuity-panel-closed" aria-hidden="true">
               <span>Para a</span><strong>Empresa</strong><small>Passe o mouse ou toque para abrir</small><i>+</i>
             </div>
@@ -805,6 +898,25 @@ function ContinuitySection() {
           </article>
         </div>
       </div>
+      {openedEquipmentImage && (
+        <div
+          className="roadmap-lightbox equipment-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Visualização ampliada dos registros do equipamento ${selectedEquipment}`}
+          onMouseDown={(event) => event.currentTarget === event.target && setOpenedEquipmentImage(null)}
+        >
+          <button type="button" className="lightbox-close" onClick={() => setOpenedEquipmentImage(null)} aria-label="Fechar imagem">×</button>
+          {equipmentRecord.images.length > 1 && <button type="button" className="lightbox-arrow lightbox-prev" onClick={() => moveEquipmentLightbox(-1)} aria-label="Imagem anterior">←</button>}
+          <figure>
+            <div className="lightbox-image-wrap">
+              <Image src={openedEquipmentImage.src} alt={openedEquipmentImage.alt} fill priority sizes="96vw" />
+            </div>
+            <figcaption>{selectedEquipment} · registro {openedEquipmentIndex + 1} de {equipmentRecord.images.length}</figcaption>
+          </figure>
+          {equipmentRecord.images.length > 1 && <button type="button" className="lightbox-arrow lightbox-next" onClick={() => moveEquipmentLightbox(1)} aria-label="Próxima imagem">→</button>}
+        </div>
+      )}
     </section>
   );
 }

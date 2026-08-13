@@ -98,22 +98,11 @@ export function buildOperationalImpact(
   const yearEnd = monitoringEnd ? `${monitoringEnd.slice(0, 4)}-12-31` : null;
   const projectedDays = calendarDaysInclusive(monitoringStart, yearEnd);
   const remainingDays = Math.max(0, projectedDays - observedDays);
-  const latestPeriod = availableMonitoringPeriods.at(-1);
-  const latestMonitoring = aggregateReadings(
-    monitoringReadings.filter((reading) => reading.periodStart === latestPeriod?.start),
-  );
-  const latestDays = calendarDaysInclusive(latestPeriod?.start ?? null, latestPeriod?.end ?? null);
-  const latestAvoidedLiters = nonNegative(
-    baseline.consumption * latestMonitoring.engineHours - latestMonitoring.fuelConsumed,
-  );
-  const latestAvoidedIdleHours = nonNegative(
-    (baseline.idle / 100) * latestMonitoring.engineHours - latestMonitoring.idleHours,
-  );
-  const projectedLiters = latestDays
-    ? avoidedLiters + (latestAvoidedLiters / latestDays) * remainingDays
+  const projectedLiters = observedDays
+    ? avoidedLiters + (avoidedLiters / observedDays) * remainingDays
     : avoidedLiters;
-  const projectedIdleHours = latestDays
-    ? avoidedIdleHours + (latestAvoidedIdleHours / latestDays) * remainingDays
+  const projectedIdleHours = observedDays
+    ? avoidedIdleHours + (avoidedIdleHours / observedDays) * remainingDays
     : avoidedIdleHours;
 
   return {

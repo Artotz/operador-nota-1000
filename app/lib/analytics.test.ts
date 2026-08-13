@@ -31,9 +31,21 @@ describe("aggregateReadings", () => {
       productive: expect.closeTo(73.99, 2),
     });
     expect(aggregateReadings(secondWindow)).toMatchObject({
-      consumption: expect.closeTo(29.13, 2),
-      idle: expect.closeTo(20.24, 2),
-      productive: expect.closeTo(79.76, 2),
+      consumption: expect.closeTo(29.58, 2),
+      idle: expect.closeTo(19.67, 2),
+      productive: expect.closeTo(80.33, 2),
+    });
+  });
+
+  it("mantem todas as maquinas em todas as seis quinzenas importadas", () => {
+    const serials = new Set(operatorAssignments.map((assignment) => assignment.serial));
+
+    expect(readings).toHaveLength(reportingPeriods.length * serials.size);
+    reportingPeriods.forEach((period) => {
+      const periodReadings = readings.filter((reading) => reading.periodStart === period.start);
+      expect(periodReadings).toHaveLength(serials.size);
+      expect(new Set(periodReadings.map((reading) => reading.serial))).toEqual(serials);
+      expect(periodReadings.every((reading) => reading.periodEnd === period.end)).toBe(true);
     });
   });
 });
@@ -70,7 +82,7 @@ describe("telemetryScore", () => {
 describe("buildRanking", () => {
   it("agrupa as duas maquinas do mesmo operador e soma as avaliacoes humanas", () => {
     const result = buildRanking(readings, reportingPeriods, operatorAssignments);
-    expect(result.isOfficial).toBe(false);
+    expect(result.isOfficial).toBe(true);
     expect(result.behaviorComplete).toBe(true);
     expect(result.missingBehaviorNames).toEqual([]);
     expect(result.entries).toHaveLength(4);
@@ -78,9 +90,9 @@ describe("buildRanking", () => {
     expect(result.entries.every((entry) => entry.maximum === 100)).toBe(true);
     expect(result.entries.every((entry) => Number.isInteger(entry.score))).toBe(true);
     expect(result.entries.every((entry) => entry.periodScores.length === 1)).toBe(true);
-    expect(result.availableTrackedPeriods).toHaveLength(3);
+    expect(result.availableTrackedPeriods).toHaveLength(4);
 
-    const latestPeriod = reportingPeriods.find((period) => period.id === "window-2a");
+    const latestPeriod = reportingPeriods.find((period) => period.id === "window-2b");
     expect(latestPeriod).toBeDefined();
     result.entries.forEach((entry) => {
       const serials = new Set(entry.serials);
@@ -97,7 +109,7 @@ describe("buildRanking", () => {
       expect(latestReadings).toHaveLength(entry.serials.length);
       const telemetry = telemetryScore(aggregateReadings(latestReadings), baseline.consumption);
       const assignment = operatorAssignments.find((item) => item.operatorId === entry.id)!;
-      const behavior = assignment.behaviorScores.find((score) => score.periodId === "window-2a")!;
+      const behavior = assignment.behaviorScores.find((score) => score.periodId === "window-2b")!;
       expect(entry.score).toBe(
         telemetry.consumption + telemetry.idle + telemetry.productive +
           behavior.safety + behavior.assetCare + behavior.attendance,
@@ -125,38 +137,14 @@ describe("buildRanking", () => {
   });
 
   it("so se torna oficial com a ultima janela esperada e suas avaliacoes", () => {
-    const lastKnownBySerial = new Map(
-      readings
-        .filter((reading) => reading.periodStart === "2026-07-14")
-        .map((reading) => [reading.serial, reading]),
-    );
-    const finalReadings = [...lastKnownBySerial.values()].map((reading) => ({
-      ...reading,
-      periodStart: "2026-07-30",
-      periodEnd: "2026-08-13",
-      source: "teste.xlsx",
-    }));
-    const completeAssignments = operatorAssignments.map((assignment) => ({
-      ...assignment,
-      behaviorScores: reportingPeriods
-        .filter((period) => period.phase !== "baseline")
-        .map((period) => ({
-          periodId: period.id,
-          safety: 10 as const,
-          assetCare: 10 as const,
-          attendance: 5 as const,
-        })),
-    }));
+    const withoutFinalPeriod = readings.filter((reading) => reading.periodStart !== "2026-07-30");
+    expect(buildRanking(withoutFinalPeriod, reportingPeriods, operatorAssignments).isOfficial).toBe(false);
 
-    const result = buildRanking(
-      [...readings, ...finalReadings],
-      reportingPeriods,
-      completeAssignments,
-    );
+    const result = buildRanking(readings, reportingPeriods, operatorAssignments);
     expect(result.isOfficial).toBe(true);
     expect(result.entries).toHaveLength(4);
     expect(result.entries.every((entry) => entry.maximum === 100)).toBe(true);
-    expect(result.entries.every((entry) => entry.breakdown.safety === 10)).toBe(true);
+    expect(result.availableTrackedPeriods.at(-1)?.id).toBe("window-2b");
   });
 });
 
@@ -180,14 +168,14 @@ describe("buildOperationalImpact", () => {
 
     expect(result.baseline.operatingHours).toBeCloseTo(baseline.engineHours);
     expect(result.monitoring.operatingHours).toBeCloseTo(monitoring.engineHours);
-    expect(result.monitoring.periodMachineCount).toBe(15);
+    expect(result.monitoring.periodMachineCount).toBe(20);
     expect(result.monitoring.averageHoursPerPeriodMachine).toBeCloseTo(
-      monitoring.engineHours / 15,
+      monitoring.engineHours / 20,
     );
     expect(result.monitoring).toMatchObject({
       start: "2026-06-14",
-      end: "2026-07-29",
-      observedDays: 46,
+      end: "2026-08-13",
+      observedDays: 61,
     });
     expect(result.avoidedLiters).toBeCloseTo(expectedLiters);
     expect(result.estimatedDieselSavings).toBeCloseTo(expectedLiters * 6);
@@ -196,12 +184,9 @@ describe("buildOperationalImpact", () => {
       end: "2026-12-31",
       days: 201,
     });
-    const latest = aggregateReadings(readings.filter((reading) => reading.periodStart === "2026-07-14"));
-    const latestLiters = Math.max(0, baseline.consumption * latest.engineHours - latest.fuelConsumed);
-    const latestIdleHours = Math.max(0, (baseline.idle / 100) * latest.engineHours - latest.idleHours);
-    expect(result.projectedThroughYearEnd.avoidedLiters).toBeCloseTo(expectedLiters + (latestLiters / 16) * 155);
-    expect(result.projectedThroughYearEnd.estimatedDieselSavings).toBeCloseTo((expectedLiters + (latestLiters / 16) * 155) * 6);
-    expect(result.projectedThroughYearEnd.avoidedIdleHours).toBeCloseTo(expectedIdleHours + (latestIdleHours / 16) * 155);
+    expect(result.projectedThroughYearEnd.avoidedLiters).toBeCloseTo(expectedLiters + (expectedLiters / 61) * 140);
+    expect(result.projectedThroughYearEnd.estimatedDieselSavings).toBeCloseTo((expectedLiters + (expectedLiters / 61) * 140) * 6);
+    expect(result.projectedThroughYearEnd.avoidedIdleHours).toBeCloseTo(expectedIdleHours + (expectedIdleHours / 61) * 140);
   });
 
   it("nunca retorna impacto negativo e aceita preco de diesel configuravel", () => {
