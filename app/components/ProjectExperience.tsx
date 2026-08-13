@@ -963,7 +963,7 @@ export function ProjectExperience() {
             height={100}
             priority
           />
-          <Image src="/project-assets/brand/logo-csc.png" alt="CSC" width={58} height={58} priority />
+          <Image className="hero-csc-logo" src="/project-assets/brand/logo-csc.png" alt="CSC" width={76} height={76} priority />
         </div>
         <div className="hero-content">
           <Image className="hero-project-logo" src="/project-assets/brand/logo-operador.png" alt="Operador Nota 1.000 — Excelência Operacional" width={420} height={420} priority />
