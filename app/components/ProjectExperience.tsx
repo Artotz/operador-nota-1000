@@ -557,10 +557,8 @@ function PodiumSection() {
                 </div>
                 {!isRevealed && <div className="podium-lock" aria-hidden="true"><span>?</span></div>}
                 <div className="podium-secret">
-                  {/* <p>{isRevealed ? entry.revealName : "Identidade protegida"}</p>
-                  <h3>{isRevealed ? entry.machine : "••••••••"}</h3> */}
-                  <p>{isRevealed ? entry.revealName : ""}</p>
-                  <h3>{isRevealed ? entry.machine : ""}</h3>
+                  <p>{isRevealed ? entry.machine : ""}</p>
+                  <h3>{isRevealed ? entry.revealName : ""}</h3>
                   <strong>{isRevealed ? `${entry.score} / ${entry.maximum}` : "—"}</strong>
                 </div>
                 {isRevealed && (
@@ -689,10 +687,10 @@ function EconomySection() {
 
   const cards = [
     { value: impact.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado acumulado", note: `litros não consumidos entre ${monitoringLabel}, comparados ao consumo de referência` },
-    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "economia em diesel acumulada", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L` },
+    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "economia em diesel acumulada", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L` },
     { value: impact.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "horas produtivas geradas", note: "horas que deixaram de ser ociosas e ficaram disponíveis para produzir no período acumulado" },
     { value: impact.projectedThroughYearEnd.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} L`, label: "projeção de combustível poupado", note: `acumulado estimado ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
-    { value: impact.projectedThroughYearEnd.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }), label: "projeção de economia em diesel", note: `valor estimado ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
+    { value: impact.projectedThroughYearEnd.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "projeção de economia em diesel", note: `valor estimado ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
     { value: impact.projectedThroughYearEnd.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "projeção de horas produtivas", note: `horas acumuladas estimadas ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
     // { value: productivityGain, format: (value: number) => `${value >= 0 ? "+" : ""}${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p.`, label: "ganho médio de produtividade", note: "variação da parcela de horas realmente produtivas. É uma taxa, portanto não deve ser somada nem projetada" },
     { value: 8, format: (value: number) => `${Math.round(value)} dias`, label: "acompanhamento da operação", note: "presença em campo para observar a rotina, orientar a equipe e consolidar boas práticas" },
@@ -937,7 +935,6 @@ function PartnersSection() {
           {partners.map((partner) => (
             <div key={partner.label} className="partner-logo">
               <Image src={partner.src} alt={partner.alt} width={240} height={150} sizes="(max-width: 640px) 70vw, 30vw" />
-              <small>{partner.label}</small>
             </div>
           ))}
         </div>

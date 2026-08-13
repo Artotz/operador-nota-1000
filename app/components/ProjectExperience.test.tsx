@@ -122,11 +122,25 @@ describe("ProjectExperience", () => {
     expect(within(table).getByText("Luciano Damasceno Ferreira")).toBeInTheDocument();
     expect(within(table).getByText("Quitério de Santana do Ipanema")).toBeInTheDocument();
     expect(within(table).getByText("0 / 25")).toBeInTheDocument();
+    const podiumCards = Array.from(podium.querySelectorAll(".podium-card"));
+    podiumCards.forEach((card) => {
+      expect(card.querySelector(".podium-secret h3")).toHaveTextContent(/\S/);
+      expect(card.querySelector(".podium-secret p")).toHaveTextContent(/^EEH/);
+    });
+    expect(podium.querySelectorAll(".podium-secret h3")).toHaveLength(3);
     expect(table.querySelectorAll("tbody td:last-child strong")).toHaveLength(4);
     table.querySelectorAll("tbody td:last-child strong").forEach((total) => {
       expect(total).toHaveTextContent(/^\d+ \/ 100$/);
     });
     expect(within(podium).getByRole("heading", { name: "Pontuação geral por operador" })).toBeInTheDocument();
+  });
+
+  it("exibe somente as marcas, sem repetir seus nomes abaixo das logos", () => {
+    render(<ProjectExperience />);
+    const partners = document.getElementById("parceiros") as HTMLElement;
+
+    expect(partners.querySelectorAll(".partner-logo img")).toHaveLength(3);
+    expect(partners.querySelector(".partner-logo small")).not.toBeInTheDocument();
   });
 
   it("apresenta os acumulados e as projeções de valor gerado", () => {
@@ -136,6 +150,7 @@ describe("ProjectExperience", () => {
     expect(screen.getByRole("heading", { name: /Valor acumulado desde o início do acompanhamento/i })).toBeInTheDocument();
     expect(screen.getByText("combustível poupado acumulado")).toBeInTheDocument();
     expect(screen.getByText("projeção de economia em diesel")).toBeInTheDocument();
+    expect(screen.getAllByText(/^R\$\s.*,[0-9]{2}$/)).toHaveLength(2);
     expect(screen.getByText(/Referência · 14\/05 a 13\/06/i)).toBeInTheDocument();
     expect(screen.getByText(/Acumulado medido · 14\/06 a 13\/08/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Próximo card" }));
@@ -149,7 +164,7 @@ describe("ProjectExperience", () => {
     render(<ProjectExperience />);
     const continuity = document.getElementById("continuidade") as HTMLElement;
 
-    expect(within(continuity).getByText("Dentes em dia. Radiador limpo. Máquina pronta.")).toBeInTheDocument();
+    expect(within(continuity).getByText("Manutenção em dia, produção com garantia.")).toBeInTheDocument();
     expect(within(continuity).getByText("Troca dos dentes da caçamba")).toBeInTheDocument();
     expect(within(continuity).getByText("Limpeza do radiador")).toBeInTheDocument();
 
