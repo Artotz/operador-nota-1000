@@ -363,7 +363,7 @@ function ConsolidatedSection() {
             <MetricToggle metric={metric} onChange={setMetric} />
           </div>
           <div className="chart-summary">
-            <div><span>Início</span><strong>{formatMetric(startValue, metric)}</strong></div>
+            <div><span>{usesPeriodAverage ? "Consumo prévio médio" : "Início"}</span><strong>{formatMetric(startValue, metric)}</strong></div>
             <div><span>{usesPeriodAverage ? "Média do período" : "Último registro"}</span><strong>{formatMetric(endValue, metric)}</strong></div>
             <div className={improvement >= 0 ? "positive" : "negative"}>
               <span>{usesPeriodAverage ? "Ganho médio no período" : "Ganho no período"}</span><strong>{improvement >= 0 ? "+" : ""}{formatMetric(improvement, metric)}</strong>
