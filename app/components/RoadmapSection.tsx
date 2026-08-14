@@ -37,7 +37,7 @@ export function RoadmapSection() {
     <section id="roadmap" className="story-section roadmap-section" aria-labelledby="roadmap-title">
       <div className="section-shell">
       <header className="section-heading reveal">
-        <p className="eyebrow">02 — Acompanhamento em campo</p>
+        <p className="eyebrow">03 — Acompanhamento em campo</p>
         <h2 id="roadmap-title">A jornada aconteceu em cada visita.</h2>
         <p className="section-intro">
           Selecione uma data para conhecer os registros fotográficos do Projeto Operador Nota 1.000.
@@ -47,11 +47,13 @@ export function RoadmapSection() {
       <div className="roadmap-tabs reveal" role="group" aria-label="Marcos do roadmap">
         {roadmapMilestones.map((milestone) => {
           const isSelected = milestone.id === selectedMilestone.id;
+          const isDisabled = milestone.id === "next";
           return (
             <button
               key={milestone.id}
               type="button"
               aria-pressed={isSelected}
+              disabled={isDisabled}
               className={isSelected ? "is-active" : ""}
               onClick={() => {
                 setSelectedId(milestone.id);

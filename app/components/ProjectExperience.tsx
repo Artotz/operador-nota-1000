@@ -23,6 +23,7 @@ const readings = machineReadings as MachineReading[];
 
 const sections = [
   ["abertura", "Abertura"],
+  ["objetivo", "Objetivo"],
   ["roadmap", "Roadmap"],
   ["criterios", "Critérios"],
   ["evolucao", "Consolidado"],
@@ -253,6 +254,51 @@ function SectionHeading({ eyebrow, title, text }: { eyebrow: string; title: stri
   );
 }
 
+const objectivePillars = [
+  {
+    number: "01",
+    title: "Eficiência operacional",
+    text: "Redução da ociosidade, aumento das horas produtivas e melhor uso dos ativos.",
+  },
+  {
+    number: "02",
+    title: "Economia real",
+    text: "Redução do consumo de combustível e menor custo operacional por hora trabalhada.",
+  },
+  {
+    number: "03",
+    title: "Engajamento",
+    text: "Reconhecimento dos operadores e fortalecimento da cultura de excelência.",
+  },
+];
+
+function ObjectiveSection() {
+  return (
+    <section id="objetivo" className="story-section objective-section" aria-labelledby="objective-title">
+      <div className="objective-watermark" aria-hidden="true">1000</div>
+      <div className="section-shell">
+        <header className="objective-heading reveal">
+          <p className="eyebrow">02 — Objetivo do projeto</p>
+          <h2 id="objective-title">Elevar a maturidade da operação.</h2>
+          <p className="objective-statement">
+            O Programa Operador Nota 1.000 integra telemetria, capacitação técnica, gestão de performance e reconhecimento por mérito para elevar a maturidade operacional da FP Construtora.
+          </p>
+        </header>
+        <div className="criteria-grid">
+          {objectivePillars.map((pillar, index) => (
+            <article className="criterion-card reveal" key={pillar.title} style={{ transitionDelay: `${index * 70}ms` }}>
+              <span>{pillar.number}</span>
+              {/* <div className="criterion-score">Pilar</div> */}
+              <h3>{pillar.title}</h3>
+              <p>{pillar.text}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ScoreFormula() {
   const ref = useRef<HTMLDivElement>(null);
   const [values, setValues] = useState([0, 0, 0]);
@@ -337,13 +383,14 @@ function ConsolidatedSection() {
   const latest = available.at(-1)?.value ?? 0;
   const startValue = first;
   const endValue = latest;
-  const improvement = config.lowerIsBetter ? startValue - endValue : endValue - startValue;
+  const improvement = endValue - startValue;
+  const isPositiveImprovement = config.lowerIsBetter ? improvement <= 0 : improvement >= 0;
 
   return (
     <section id="evolucao" className="story-section data-section">
       <div className="section-shell">
         <SectionHeading
-          eyebrow="04 — Evolução consolidada"
+          eyebrow="05 — Evolução consolidada"
           title="Uma operação em movimento."
           text="O consumo mostra a média simples das máquinas; ociosidade e produtividade consideram a participação das horas operadas em cada relatório."
         />
@@ -360,8 +407,8 @@ function ConsolidatedSection() {
           <div className="chart-summary">
             <div><span>Início</span><strong>{formatMetric(startValue, metric)}</strong></div>
             <div><span>Último registro</span><strong>{formatMetric(endValue, metric)}</strong></div>
-            <div className={improvement >= 0 ? "positive" : "negative"}>
-              <span>Ganho no período</span><strong>{improvement >= 0 ? "+" : ""}{formatMetric(improvement, metric)}</strong>
+            <div className={isPositiveImprovement ? "positive" : "negative"}>
+              <span>Melhoria</span><strong>{improvement > 0 ? "+" : ""}{formatMetric(improvement, metric)}</strong>
             </div>
           </div>
           <div className="main-chart" aria-label={`Gráfico consolidado de ${config.label}`}>
@@ -417,7 +464,7 @@ function OperatorSection() {
     <section id="operadores" className="story-section operators-section">
       <div className="section-shell">
         <SectionHeading
-          eyebrow="05 — Visão individual"
+          eyebrow="06 — Visão individual"
           title="Cada linha conta uma história de evolução."
           text="Passe o mouse para destacar um operador. Clique em um cartão para fixar a seleção, comparar a série e revelar os valores sobre cada ponto."
         />
@@ -532,7 +579,7 @@ function PodiumSection() {
     <section id="podio" className="story-section podium-section">
       <div className="section-shell">
         <SectionHeading
-          eyebrow="06 — Reconhecimento"
+          eyebrow="07 — Reconhecimento"
           title="Chegou a hora de revelar o pódio."
           text={ranking.behaviorComplete
             ? "A nota usa o último período disponível e aplica somente as faixas inteiras previstas: meta, desafio e critérios humanos."
@@ -761,7 +808,7 @@ function EconomySection() {
     <section id="economias" className="story-section economy-section">
       <div className="section-shell">
         <SectionHeading
-          eyebrow="07 — Valor gerado"
+          eyebrow="08 — Valor gerado"
           title="Valor gerado na janela final."
           text="A 3ª janela é comparada diretamente com a referência de maio, preservando a regra de consolidação de cada indicador."
         />
@@ -844,7 +891,7 @@ function ContinuitySection() {
     <section id="continuidade" className="story-section continuity-section">
       <div className="section-shell">
         <SectionHeading
-          eyebrow="08 — Não acaba por aqui"
+          eyebrow="09 — Não acaba por aqui"
           title="O resultado vira hábito. O projeto vira próximo passo."
           text="Recomendações diretas para sustentar o que funcionou e transformar os aprendizados em uma nova frente de valor."
         />
@@ -992,12 +1039,13 @@ export function ProjectExperience() {
         </div>
       </section>
 
+      <ObjectiveSection />
       <RoadmapSection />
 
       <section id="criterios" className="story-section criteria-section">
         <div className="section-shell">
           <SectionHeading
-            eyebrow="03 — Critérios avaliados"
+            eyebrow="04 — Critérios avaliados"
             title="Excelência é a soma de cada decisão."
             text="A nota combina eficiência da máquina com disciplina operacional. São seis critérios, uma régua transparente e 100 pontos em jogo."
           />

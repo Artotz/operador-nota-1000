@@ -39,7 +39,12 @@ describe("ProjectExperience", () => {
     expect(screen.getByAltText("Operador Nota 1.000 — Excelência Operacional")).toBeInTheDocument();
     expect(screen.getByAltText("Equipe do Projeto Operador Nota 1.000 em campo")).toHaveAttribute("src", "/project-assets/hero/IMG_4736.JPG.jpeg");
     expect(screen.queryByText(/Performance que/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Quatro relatórios mensais. Uma operação em movimento." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Elevar a maturidade da operação." })).toBeInTheDocument();
+    expect(screen.getByText(/integra telemetria, capacitação técnica, gestão de performance/i)).toBeInTheDocument();
+    ["Eficiência operacional", "Economia real", "Engajamento"].forEach((pillar) => {
+      expect(screen.getByRole("heading", { name: pillar })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("heading", { name: "Uma operação em movimento." })).toBeInTheDocument();
     expect(screen.getByText("01/05 a 31/05")).toBeInTheDocument();
     expect(screen.getByText("01/06 a 30/06")).toBeInTheDocument();
     expect(screen.getByText("01/07 a 31/07")).toBeInTheDocument();
@@ -63,24 +68,32 @@ describe("ProjectExperience", () => {
     const productivityButton = within(consolidated as HTMLElement).getByRole("button", {
       name: "Produtividade",
     });
+    const idleButton = within(consolidated as HTMLElement).getByRole("button", {
+      name: "Ociosidade",
+    });
     expect(within(consolidated as HTMLElement).getByText("Início")).toBeInTheDocument();
     expect(within(consolidated as HTMLElement).getByText("Último registro")).toBeInTheDocument();
-    expect(within(consolidated as HTMLElement).getByText("Ganho no período")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("Melhoria")).toBeInTheDocument();
     expect(within(consolidated as HTMLElement).getByText("29,9 l/h")).toBeInTheDocument();
     expect(within(consolidated as HTMLElement).getByText("23,5 l/h")).toBeInTheDocument();
-    expect(within(consolidated as HTMLElement).getByText("+6,4 l/h")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("-6,4 l/h")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("-6,4 l/h").closest("div")).toHaveClass("positive");
+    fireEvent.click(idleButton);
+    const idleImprovement = within(consolidated as HTMLElement).getByText("Melhoria").closest("div");
+    expect(idleImprovement).toHaveClass("positive");
+    expect(idleImprovement?.querySelector("strong")).toHaveTextContent(/^-/);
     fireEvent.click(productivityButton);
     expect(productivityButton).toHaveAttribute("aria-pressed", "true");
     expect(within(consolidated as HTMLElement).getByText("Tempo efetivamente trabalhando")).toBeInTheDocument();
     expect(within(consolidated as HTMLElement).getByText("Último registro")).toBeInTheDocument();
-    expect(within(consolidated as HTMLElement).getByText("Ganho no período")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("Melhoria")).toBeInTheDocument();
     expect(within(consolidated as HTMLElement).getByText("79,5%")).toBeInTheDocument();
     expect(within(consolidated as HTMLElement).getByText("+9,2%")).toBeInTheDocument();
   });
 
   it("updates the section rail from the scroll position", () => {
     let scrollOffset = 0;
-    const sectionOrder = ["abertura", "roadmap", "criterios", "evolucao", "operadores", "podio", "economias", "continuidade", "parceiros"];
+    const sectionOrder = ["abertura", "objetivo", "roadmap", "criterios", "evolucao", "operadores", "podio", "economias", "continuidade", "parceiros"];
     const bounds = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
       const position = sectionOrder.indexOf(this.id);
       const top = position < 0 ? 10000 : position * 1000 - scrollOffset;
@@ -92,11 +105,11 @@ describe("ProjectExperience", () => {
 
     scrollOffset = 2500;
     fireEvent.scroll(window);
-    expect(screen.getByRole("button", { name: "Ir para Critérios" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("button", { name: "Ir para Roadmap" })).toHaveAttribute("aria-current", "step");
 
     scrollOffset = 3500;
     fireEvent.scroll(window);
-    expect(screen.getByRole("button", { name: "Ir para Consolidado" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("button", { name: "Ir para Critérios" })).toHaveAttribute("aria-current", "step");
 
     bounds.mockRestore();
   });

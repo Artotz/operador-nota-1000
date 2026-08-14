@@ -11,10 +11,16 @@ export type RoadmapMilestone = {
   images: RoadmapImage[];
 };
 
-const kickoffImages: RoadmapImage[] = Array.from({ length: 2 }, (_, index) => ({
-  src: `/project-assets/roadmap/kickoff/kickoff-${String(index + 1).padStart(2, "0")}.jpg`,
-  alt: `Registro fotográfico do kickoff do Projeto Operador Nota 1.000, imagem ${index + 1}`,
-}));
+const kickoffImages: RoadmapImage[] = [
+  {
+    src: "/project-assets/roadmap/kickoff/kickoff-participants.jpg",
+    alt: "Participantes do Projeto Operador Nota 1.000",
+  },
+  {
+    src: "/project-assets/roadmap/kickoff/kickoff-01.jpg",
+    alt: "Registro fotográfico do kickoff do Projeto Operador Nota 1.000",
+  },
+];
 
 const visitOneImages: RoadmapImage[] = Array.from({ length: 10 }, (_, index) => ({
   src: `/project-assets/roadmap/visit-1/visit-1-${String(index + 1).padStart(2, "0")}.jpg`,

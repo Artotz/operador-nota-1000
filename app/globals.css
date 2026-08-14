@@ -74,6 +74,12 @@ button { color: inherit; }
 .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); }
 .reveal.is-visible { opacity: 1; transform: none; }
 
+.objective-section { padding: 120px 0; display: flex; align-items: center; overflow: hidden; background: radial-gradient(circle at 88% 18%,rgba(244,196,0,.14),transparent 31%),linear-gradient(145deg,#0d110d,#080b08 68%); }
+.objective-watermark { position: absolute; right: -35px; top: 48%; color: rgba(255,255,255,.018); font: 400 clamp(220px,34vw,520px)/.7 Impact,"Arial Narrow",sans-serif; letter-spacing: -.07em; transform: translateY(-50%); pointer-events: none; }
+.objective-heading { max-width: 990px; }
+.objective-heading h2 { max-width: 900px; margin: 16px 0 28px; font: 400 clamp(50px,7.5vw,102px)/.9 Impact,"Arial Narrow",sans-serif; text-transform: uppercase; letter-spacing: -.025em; }
+.objective-statement { max-width: 940px; margin: 0; padding: 4px 0 4px 27px; border-left: 3px solid var(--yellow); color: #c3c9c1; font-size: clamp(18px,2.2vw,27px); line-height: 1.48; }
+
 .criteria-section { padding: 120px 0; background: radial-gradient(circle at 85% 5%, rgba(244,196,0,.09), transparent 33%), #0a0d0b; }
 .criteria-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 70px; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .criterion-card { position: relative; min-height: 300px; padding: 34px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,255,255,.018); overflow: hidden; }
@@ -201,7 +207,9 @@ button { color: inherit; }
   .hero-mark { margin-bottom: 38px; }
   .hero-content h1 { font-size: clamp(60px,22vw,92px); }
   .hero-footer { display: grid; gap: 25px; }
-  .criteria-section, .data-section, .operators-section, .podium-section { padding: 90px 0; }
+  .objective-section, .criteria-section, .data-section, .operators-section, .podium-section { padding: 90px 0; }
+  .objective-heading h2 { font-size: clamp(48px,15vw,70px); }
+  .objective-statement { padding-left: 18px; font-size: 18px; }
   .criteria-grid { grid-template-columns: 1fr; margin-top: 45px; }
   .criterion-card { min-height: 250px; }
   .score-formula { gap: 15px; }
@@ -252,6 +260,8 @@ button { color: inherit; }
 .roadmap-tabs button span { display:grid; place-items:center; width:28px; height:28px; margin:0 auto 12px; border:1px solid #495049; border-radius:50%; background:#0b0e0b; color:#707770; font-size:11px; transition:.25s ease; }
 .roadmap-tabs button:hover,.roadmap-tabs button.is-active { color:#fff; background:rgba(244,196,0,.055); }
 .roadmap-tabs button.is-active span { border-color:var(--yellow); background:var(--yellow); color:#0a0d0b; box-shadow:0 0 0 6px rgba(244,196,0,.11); }
+.roadmap-tabs button:disabled,.roadmap-tabs button:disabled:hover { color:#4d544d; background:#090c09; cursor:not-allowed; opacity:.58; }
+.roadmap-tabs button:disabled span { border-color:#303630; background:#090c09; color:#4d544d; box-shadow:none; }
 .roadmap-stage { min-height:570px; padding:28px; border:1px solid var(--line); background:#101410; box-shadow:0 30px 80px rgba(0,0,0,.25); }
 .roadmap-stage-head { display:flex; align-items:flex-end; justify-content:space-between; gap:28px; padding:4px 5px 25px; }
 .roadmap-date { margin:0 0 7px; color:var(--yellow); font-size:11px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }

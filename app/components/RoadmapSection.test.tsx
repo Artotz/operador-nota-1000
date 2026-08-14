@@ -17,6 +17,11 @@ describe("RoadmapSection", () => {
       expect(screen.getByRole("button", { name: date })).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "8 DE JUN" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "17 DE AGOSTO" })).toBeDisabled();
+    const kickoffImages = screen.getAllByRole("img");
+    expect(kickoffImages).toHaveLength(2);
+    expect(kickoffImages[0]).toHaveAttribute("src", "/project-assets/roadmap/kickoff/kickoff-participants.jpg");
+    expect(kickoffImages[1]).toHaveAttribute("src", "/project-assets/roadmap/kickoff/kickoff-01.jpg");
   });
 
   it("troca o marco selecionado e mostra sua colagem", () => {
@@ -27,7 +32,9 @@ describe("RoadmapSection", () => {
 
     expect(visitButton).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("heading", { name: "Primeira visita de acompanhamento" })).toBeInTheDocument();
-    expect(screen.getAllByRole("img")).toHaveLength(10);
+    const images = screen.getAllByRole("img");
+    expect(images).toHaveLength(10);
+    expect(images[0]).toHaveAttribute("src", "/project-assets/roadmap/visit-1/visit-1-01.jpg");
     expect(screen.getByText("10 registros fotográficos")).toBeInTheDocument();
   });
 
@@ -41,14 +48,14 @@ describe("RoadmapSection", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("mostra o placeholder para o marco ainda sem registros", () => {
+  it("mantém indisponível o marco ainda sem registros", () => {
     render(<RoadmapSection />);
 
-    fireEvent.click(screen.getByRole("button", { name: "17 DE AGOSTO" }));
+    const nextMilestone = screen.getByRole("button", { name: "17 DE AGOSTO" });
+    fireEvent.click(nextMilestone);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Próximo capítulo — registros serão adicionados após a visita",
-    );
-    expect(screen.getByText("0 registros fotográficos")).toBeInTheDocument();
+    expect(nextMilestone).toBeDisabled();
+    expect(screen.getByRole("button", { name: "8 DE JUN" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });
