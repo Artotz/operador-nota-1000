@@ -101,6 +101,20 @@ export type OperationalImpact = {
     end: string | null;
     observedDays: number;
   };
+  periods: Array<{
+    id: string;
+    label: string;
+    longLabel: string;
+    start: string;
+    end: string;
+    operatingHours: number;
+    averageFuelRate: number;
+    idleRate: number;
+    observedDays: number;
+    avoidedLiters: number;
+    estimatedDieselSavings: number;
+    avoidedIdleHours: number;
+  }>;
   dieselPricePerLiter: number;
   avoidedLiters: number;
   estimatedDieselSavings: number;
@@ -108,6 +122,7 @@ export type OperationalImpact = {
   projectedThroughYearEnd: {
     end: string | null;
     days: number;
+    remainingDays: number;
     avoidedLiters: number;
     estimatedDieselSavings: number;
     avoidedIdleHours: number;

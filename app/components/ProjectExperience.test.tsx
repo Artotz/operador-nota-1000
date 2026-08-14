@@ -167,26 +167,27 @@ describe("ProjectExperience", () => {
     expect(partners.querySelector(".partner-logo small")).not.toBeInTheDocument();
   });
 
-  it("apresenta os resultados da janela final e suas projeções", () => {
+  it("apresenta a soma dos resultados do período e suas projeções", () => {
     render(<ProjectExperience />);
 
     expect(screen.queryByRole("button", { name: "Horas" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Valor gerado na janela final/i })).toBeInTheDocument();
-    expect(screen.getByText("combustível poupado na 3ª janela")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Valor gerado no período/i })).toBeInTheDocument();
+    expect(screen.getByText("combustível poupado no período")).toBeInTheDocument();
     expect(screen.getByText("projeção de economia em diesel")).toBeInTheDocument();
-    expect(screen.getByText(/usando diesel a R\$\s*6,15\/L/i)).toBeInTheDocument();
+    expect(screen.getByText(/usando diesel a R\$\s*6,18\/L/i)).toBeInTheDocument();
     expect(screen.getAllByText(/^R\$\s.*,[0-9]{2}$/, { selector: ".economy-grid > li > strong" })).toHaveLength(2);
     expect(screen.getByText(/Referência · 01\/05 a 31\/05/i)).toBeInTheDocument();
-    expect(screen.getByText(/Janela final · 01\/08 a 13\/08/i)).toBeInTheDocument();
+    expect(screen.getByText(/Período · 01\/06 a 13\/08/i)).toBeInTheDocument();
     expect(screen.queryByText("Como calculamos:")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Resultados da 3ª janela" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Resultados do período" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Projeções até 31/12" })).toBeInTheDocument();
     expect(screen.queryByText("acompanhamento da operação")).not.toBeInTheDocument();
     expect(screen.getAllByRole("tooltip")).toHaveLength(6);
-    expect(screen.getByRole("button", { name: "Ver cálculo de combustível poupado na 3ª janela" })).toHaveAttribute("aria-describedby", "economy-results-calculation-0");
+    expect(screen.getByRole("button", { name: "Ver cálculo de combustível poupado no período" })).toHaveAttribute("aria-describedby", "economy-results-calculation-0");
     expect(screen.getByText(/Consumo médio de maio: 29,8948 L\/h/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Próximo card de resultados da 3ª janela" }));
-    expect(screen.getByRole("button", { name: "Ir para economia em diesel na 3ª janela" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/Total do período: .* = .* L/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Próximo card de resultados do período" }));
+    expect(screen.getByRole("button", { name: "Ir para economia em diesel no período" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Ir para projeção de combustível poupado" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Feedback individual de operação.")).toBeInTheDocument();
     expect(document.querySelectorAll(".continuity-panel-closed")).toHaveLength(3);

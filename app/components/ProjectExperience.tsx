@@ -786,11 +786,13 @@ function EconomyCarousel({ cards, id, title }: { cards: EconomyCard[]; id: strin
 }
 
 function EconomySection() {
-  const dieselPrice = 6.15;
+  const dieselPrice = 6.18;
   const impact = buildOperationalImpact(readings, reportingPeriods, dieselPrice);
   const monitoringLabel = impact.monitoring.start && impact.monitoring.end
     ? `${impact.monitoring.start.slice(8, 10)}/${impact.monitoring.start.slice(5, 7)} a ${impact.monitoring.end.slice(8, 10)}/${impact.monitoring.end.slice(5, 7)}`
     : "período disponível";
+  const finalPeriod = impact.periods.at(-1);
+  const finalMonitoringLabel = finalPeriod?.longLabel ?? "janela final disponível";
   const projectionLabel = impact.projectedThroughYearEnd.end
     ? `até ${impact.projectedThroughYearEnd.end.slice(8, 10)}/${impact.projectedThroughYearEnd.end.slice(5, 7)}`
     : "até o fim do ano";
@@ -798,21 +800,20 @@ function EconomySection() {
   const referenceLabel = baselinePeriods.length
     ? `${baselinePeriods[0].longLabel.split(" a ")[0]} a ${baselinePeriods.at(-1)?.longLabel.split(" a ").at(-1)}`
     : "período de referência";
-  const monitoringConsumption = aggregateReadings(
-    readings.filter((reading) => reading.periodStart === impact.monitoring.start),
-  ).consumption;
   const calculationNumber = (value: number, maximumFractionDigits = 4) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: maximumFractionDigits, maximumFractionDigits });
+  const sumCalculation = (values: number[], precision = 3) =>
+    values.map((value) => calculationNumber(value, precision)).join(" + ");
 
   const resultCards: EconomyCard[] = [
-    { value: impact.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado na 3ª janela", note: `litros não consumidos entre ${monitoringLabel}, comparados à média simples da referência`, calculation: <><p>Consumo médio de maio: {calculationNumber(impact.baseline.averageFuelRate)} L/h.</p><p> Consumo médio da 3ª janela: {calculationNumber(monitoringConsumption)} L/h.</p><p>({calculationNumber(impact.baseline.averageFuelRate)} − {calculationNumber(monitoringConsumption)}) × {calculationNumber(impact.monitoring.operatingHours)} h = {calculationNumber(impact.avoidedLiters, 3)} L.</p></> },
-    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "economia em diesel na 3ª janela", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L`, calculation: <><p>{calculationNumber(impact.avoidedLiters, 3)} L × {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L = {impact.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}.</p><p>Preço do diesel adotado no período de referência: {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L.</p></> },
-    { value: impact.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "horas produtivas na 3ª janela", note: "horas que deixaram de ser ociosas e ficaram disponíveis para produzir na janela final", calculation: <><p>Ociosidade de maio: {calculationNumber(impact.baseline.idleRate)}%. Ociosidade da 3ª janela: {calculationNumber(impact.monitoring.idleRate)}%.</p><p>({calculationNumber(impact.baseline.idleRate)}% − {calculationNumber(impact.monitoring.idleRate)}%) × {calculationNumber(impact.monitoring.operatingHours)} h = {calculationNumber(impact.avoidedIdleHours, 3)} h.</p></> },
+    { value: impact.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado no período", note: `soma dos litros não consumidos em junho, julho e agosto (${monitoringLabel}), comparados à referência`, calculation: <><p>Consumo médio de maio: {calculationNumber(impact.baseline.averageFuelRate)} L/h.</p>{impact.periods.map((period) => <p key={period.id}>{period.label}: ({calculationNumber(impact.baseline.averageFuelRate)} − {calculationNumber(period.averageFuelRate)}) × {calculationNumber(period.operatingHours)} h = {calculationNumber(period.avoidedLiters, 3)} L.</p>)}<p>Total do período: {sumCalculation(impact.periods.map((period) => period.avoidedLiters))} = {calculationNumber(impact.avoidedLiters, 3)} L.</p></> },
+    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "economia em diesel no período", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados nos três meses, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L`, calculation: <>{impact.periods.map((period) => <p key={period.id}>{period.label}: {calculationNumber(period.avoidedLiters, 3)} L × {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L = {period.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}.</p>)}<p>Total do período: {impact.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}.</p></> },
+    { value: impact.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "horas produtivas no período", note: "soma das horas que deixaram de ser ociosas nos três meses e ficaram disponíveis para produzir", calculation: <><p>Ociosidade de maio: {calculationNumber(impact.baseline.idleRate)}%.</p>{impact.periods.map((period) => <p key={period.id}>{period.label}: ({calculationNumber(impact.baseline.idleRate)}% − {calculationNumber(period.idleRate)}%) × {calculationNumber(period.operatingHours)} h = {calculationNumber(period.avoidedIdleHours, 3)} h.</p>)}<p>Total do período: {sumCalculation(impact.periods.map((period) => period.avoidedIdleHours))} = {calculationNumber(impact.avoidedIdleHours, 3)} h.</p></> },
   ];
   const projectionCards: EconomyCard[] = [
-    { value: impact.projectedThroughYearEnd.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} L`, label: "projeção de combustível poupado", note: `acumulado estimado ${projectionLabel}, mantendo a média diária da janela final`, calculation: <><p>A janela observada tem {impact.monitoring.observedDays} dias e a projeção até 31/12 cobre {impact.projectedThroughYearEnd.days} dias.</p><p>{calculationNumber(impact.avoidedLiters, 3)} L ÷ {impact.monitoring.observedDays} × {impact.projectedThroughYearEnd.days} = {calculationNumber(impact.projectedThroughYearEnd.avoidedLiters, 3)} L.</p></> },
+    { value: impact.projectedThroughYearEnd.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} L`, label: "projeção de combustível poupado", note: `acumulado estimado ${projectionLabel}, somando o realizado e a média diária da janela final`, calculation: <><p>O período observado tem {impact.monitoring.observedDays} dias. Depois de {finalMonitoringLabel}, restam {impact.projectedThroughYearEnd.remainingDays} dias até 31/12.</p><p>{calculationNumber(impact.avoidedLiters, 3)} L + ({calculationNumber(finalPeriod?.avoidedLiters ?? 0, 3)} L ÷ {finalPeriod?.observedDays ?? 0} × {impact.projectedThroughYearEnd.remainingDays}) = {calculationNumber(impact.projectedThroughYearEnd.avoidedLiters, 3)} L.</p></> },
     { value: impact.projectedThroughYearEnd.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "projeção de economia em diesel", note: `valor estimado ${projectionLabel}, mantendo a média diária da janela final`, calculation: <><p>{calculationNumber(impact.projectedThroughYearEnd.avoidedLiters, 3)} L × {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L.</p><p>Resultado projetado: {impact.projectedThroughYearEnd.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}.</p></> },
-    { value: impact.projectedThroughYearEnd.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "projeção de horas produtivas", note: `horas acumuladas estimadas ${projectionLabel}, mantendo a média diária da janela final`, calculation: <><p>{calculationNumber(impact.avoidedIdleHours, 3)} h ÷ {impact.monitoring.observedDays} × {impact.projectedThroughYearEnd.days}.</p><p>Resultado projetado: {calculationNumber(impact.projectedThroughYearEnd.avoidedIdleHours, 3)} h produtivas.</p></> },
+    { value: impact.projectedThroughYearEnd.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "projeção de horas produtivas", note: `horas acumuladas estimadas ${projectionLabel}, somando o realizado e a média diária da janela final`, calculation: <><p>{calculationNumber(impact.avoidedIdleHours, 3)} h + ({calculationNumber(finalPeriod?.avoidedIdleHours ?? 0, 3)} h ÷ {finalPeriod?.observedDays ?? 0} × {impact.projectedThroughYearEnd.remainingDays}).</p><p>Resultado projetado: {calculationNumber(impact.projectedThroughYearEnd.avoidedIdleHours, 3)} h produtivas.</p></> },
   ];
 
   return (
@@ -820,15 +821,15 @@ function EconomySection() {
       <div className="section-shell">
         <SectionHeading
           eyebrow="08 — Valor gerado"
-          title="Valor gerado na janela final."
-          text="A 3ª janela é comparada diretamente com a referência de maio, preservando a regra de consolidação de cada indicador."
+          title="Valor gerado no período."
+          text="Cada uma das três janelas é comparada com a referência de maio; os resultados de junho, julho e agosto são somados."
         />
         <ol className="value-timeline reveal" aria-label="Datas usadas nos cálculos de valor gerado">
-          <li><span>01</span><div><b>Referência · {referenceLabel}</b><p>Mostra o consumo e a ociosidade antes do acompanhamento. Ela é a régua de comparação, não entra na soma.</p></div></li>
-          <li><span>02</span><div><b>Janela final · {monitoringLabel}</b><p>Compara os indicadores calculados da 3ª janela com a referência. É o valor medido nesse intervalo.</p></div></li>
-          <li><span>03</span><div><b>Projeção · {projectionLabel}</b><p>Parte do resultado da janela final e mantém sua média diária ({monitoringLabel}).</p></div></li>
+          <li><span>01</span><div><b>Referência · {referenceLabel}</b><p>Mostra o consumo e a ociosidade antes do acompanhamento.</p></div></li>
+          <li><span>02</span><div><b>Período · {monitoringLabel}</b><p>Soma os resultados das três janelas, calculados separadamente contra a referência.</p></div></li>
+          <li><span>03</span><div><b>Projeção · {projectionLabel}</b><p>Parte do resultado acumulado e aplica a média diária da janela final ({finalMonitoringLabel}) aos dias restantes.</p></div></li>
         </ol>
-        <EconomyCarousel cards={resultCards} id="economy-results" title="Resultados da 3ª janela" />
+        <EconomyCarousel cards={resultCards} id="economy-results" title="Resultados do período" />
         <EconomyCarousel cards={projectionCards} id="economy-projections" title="Projeções até 31/12" />
       </div>
     </section>

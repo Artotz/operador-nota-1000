@@ -81,34 +81,52 @@ export function buildOperationalImpact(
     allMonitoringReadings.some((reading) => reading.periodStart === period.start),
   );
   const finalMonitoringPeriod = availableMonitoringPeriods.at(-1);
-  const monitoringReadings = finalMonitoringPeriod
-    ? allMonitoringReadings.filter(
-      (reading) => reading.periodStart === finalMonitoringPeriod.start,
-    )
-    : [];
   const baseline = aggregateReadings(baselineReadings);
-  const monitoring = aggregateReadings(monitoringReadings);
+  const monitoring = aggregateReadings(allMonitoringReadings);
   const periodMachineCount = new Set(
-    monitoringReadings.map((reading) => `${reading.periodStart}:${reading.serial}`),
+    allMonitoringReadings.map((reading) => `${reading.periodStart}:${reading.serial}`),
   ).size;
   const price = nonNegative(dieselPricePerLiter);
-  const avoidedLiters = nonNegative(
-    (baseline.consumption - monitoring.consumption) * monitoring.engineHours,
-  );
-  const avoidedIdleHours = nonNegative(
-    ((baseline.idle - monitoring.idle) / 100) * monitoring.engineHours,
-  );
-  const monitoringStart = finalMonitoringPeriod?.start ?? null;
+  const periodResults = availableMonitoringPeriods.map((period) => {
+    const metrics = aggregateReadings(
+      allMonitoringReadings.filter((reading) => reading.periodStart === period.start),
+    );
+    const avoidedLiters = nonNegative(
+      (baseline.consumption - metrics.consumption) * metrics.engineHours,
+    );
+    const avoidedIdleHours = nonNegative(
+      ((baseline.idle - metrics.idle) / 100) * metrics.engineHours,
+    );
+
+    return {
+      id: period.id,
+      label: period.label,
+      longLabel: period.longLabel,
+      start: period.start,
+      end: period.end,
+      operatingHours: nonNegative(metrics.engineHours),
+      averageFuelRate: nonNegative(metrics.consumption),
+      idleRate: nonNegative(metrics.idle),
+      observedDays: calendarDaysInclusive(period.start, period.end),
+      avoidedLiters,
+      estimatedDieselSavings: avoidedLiters * price,
+      avoidedIdleHours,
+    };
+  });
+  const avoidedLiters = periodResults.reduce((total, period) => total + period.avoidedLiters, 0);
+  const avoidedIdleHours = periodResults.reduce((total, period) => total + period.avoidedIdleHours, 0);
+  const monitoringStart = availableMonitoringPeriods[0]?.start ?? null;
   const monitoringEnd = finalMonitoringPeriod?.end ?? null;
-  const observedDays = calendarDaysInclusive(monitoringStart, monitoringEnd);
+  const observedDays = periodResults.reduce((total, period) => total + period.observedDays, 0);
   const yearEnd = monitoringEnd ? `${monitoringEnd.slice(0, 4)}-12-31` : null;
-  const projectedDays = calendarDaysInclusive(monitoringStart, yearEnd);
-  const remainingDays = Math.max(0, projectedDays - observedDays);
-  const projectedLiters = observedDays
-    ? avoidedLiters + (avoidedLiters / observedDays) * remainingDays
+  const remainingDays = Math.max(0, calendarDaysInclusive(monitoringEnd, yearEnd) - 1);
+  const projectedDays = observedDays + remainingDays;
+  const finalPeriodResult = periodResults.at(-1);
+  const projectedLiters = finalPeriodResult?.observedDays
+    ? avoidedLiters + (finalPeriodResult.avoidedLiters / finalPeriodResult.observedDays) * remainingDays
     : avoidedLiters;
-  const projectedIdleHours = observedDays
-    ? avoidedIdleHours + (avoidedIdleHours / observedDays) * remainingDays
+  const projectedIdleHours = finalPeriodResult?.observedDays
+    ? avoidedIdleHours + (finalPeriodResult.avoidedIdleHours / finalPeriodResult.observedDays) * remainingDays
     : avoidedIdleHours;
 
   return {
@@ -130,6 +148,7 @@ export function buildOperationalImpact(
       end: monitoringEnd,
       observedDays,
     },
+    periods: periodResults,
     dieselPricePerLiter: price,
     avoidedLiters,
     estimatedDieselSavings: avoidedLiters * price,
@@ -137,6 +156,7 @@ export function buildOperationalImpact(
     projectedThroughYearEnd: {
       end: yearEnd,
       days: projectedDays,
+      remainingDays,
       avoidedLiters: projectedLiters,
       estimatedDieselSavings: projectedLiters * price,
       avoidedIdleHours: projectedIdleHours,

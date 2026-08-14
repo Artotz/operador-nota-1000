@@ -153,47 +153,59 @@ describe("buildRanking", () => {
 });
 
 describe("buildOperationalImpact", () => {
-  it("compara maio com a janela final disponivel", () => {
+  it("compara os tres meses com maio e soma seus resultados", () => {
     const result = buildOperationalImpact(readings, reportingPeriods);
     const baseline = aggregateReadings(
       readings.filter((reading) => reading.periodStart === "2026-05-01"),
     );
+    const monitoredPeriods = reportingPeriods.filter((period) => period.phase !== "baseline");
+    const monthlyMetrics = monitoredPeriods.map((period) => aggregateReadings(
+      readings.filter((reading) => reading.periodStart === period.start),
+    ));
+    const monthlyLiters = monthlyMetrics.map((metrics) => Math.max(
+      0,
+      (baseline.consumption - metrics.consumption) * metrics.engineHours,
+    ));
+    const monthlyIdleHours = monthlyMetrics.map((metrics) => Math.max(
+      0,
+      ((baseline.idle - metrics.idle) / 100) * metrics.engineHours,
+    ));
+    const expectedLiters = monthlyLiters.reduce((total, value) => total + value, 0);
+    const expectedIdleHours = monthlyIdleHours.reduce((total, value) => total + value, 0);
     const monitoring = aggregateReadings(
-      readings.filter((reading) => reading.periodStart === "2026-08-01"),
-    );
-    const expectedLiters = Math.max(
-      0,
-      (baseline.consumption - monitoring.consumption) * monitoring.engineHours,
-    );
-    const expectedIdleHours = Math.max(
-      0,
-      ((baseline.idle - monitoring.idle) / 100) * monitoring.engineHours,
+      readings.filter((reading) => reading.periodStart !== "2026-05-01"),
     );
 
     expect(result.baseline.operatingHours).toBeCloseTo(baseline.engineHours);
     expect(result.baseline.averageFuelRate).toBeCloseTo(29.895, 3);
     expect(result.baseline.idleRate).toBeCloseTo(29.67, 2);
     expect(result.monitoring.operatingHours).toBeCloseTo(monitoring.engineHours);
-    expect(result.monitoring.idleRate).toBeCloseTo(20.51, 2);
-    expect(result.monitoring.periodMachineCount).toBe(5);
+    expect(result.monitoring.idleRate).toBeCloseTo(monitoring.idle);
+    expect(result.monitoring.periodMachineCount).toBe(15);
     expect(result.monitoring.averageHoursPerPeriodMachine).toBeCloseTo(
-      monitoring.engineHours / 5,
+      monitoring.engineHours / 15,
     );
     expect(result.monitoring).toMatchObject({
-      start: "2026-08-01",
+      start: "2026-06-01",
       end: "2026-08-13",
-      observedDays: 13,
+      observedDays: 74,
+    });
+    expect(result.periods.map((period) => period.id)).toEqual(["june", "july", "august"]);
+    result.periods.forEach((period, index) => {
+      expect(period.avoidedLiters).toBeCloseTo(monthlyLiters[index]);
+      expect(period.avoidedIdleHours).toBeCloseTo(monthlyIdleHours[index]);
     });
     expect(result.avoidedLiters).toBeCloseTo(expectedLiters);
     expect(result.estimatedDieselSavings).toBeCloseTo(expectedLiters * 6);
     expect(result.avoidedIdleHours).toBeCloseTo(expectedIdleHours);
     expect(result.projectedThroughYearEnd).toMatchObject({
       end: "2026-12-31",
-      days: 153,
+      days: 214,
+      remainingDays: 140,
     });
-    expect(result.projectedThroughYearEnd.avoidedLiters).toBeCloseTo(expectedLiters + (expectedLiters / 13) * 140);
-    expect(result.projectedThroughYearEnd.estimatedDieselSavings).toBeCloseTo((expectedLiters + (expectedLiters / 13) * 140) * 6);
-    expect(result.projectedThroughYearEnd.avoidedIdleHours).toBeCloseTo(expectedIdleHours + (expectedIdleHours / 13) * 140);
+    expect(result.projectedThroughYearEnd.avoidedLiters).toBeCloseTo(expectedLiters + (monthlyLiters[2] / 13) * 140);
+    expect(result.projectedThroughYearEnd.estimatedDieselSavings).toBeCloseTo((expectedLiters + (monthlyLiters[2] / 13) * 140) * 6);
+    expect(result.projectedThroughYearEnd.avoidedIdleHours).toBeCloseTo(expectedIdleHours + (monthlyIdleHours[2] / 13) * 140);
   });
 
   it("nunca retorna impacto negativo e aceita preco de diesel configuravel", () => {
