@@ -96,6 +96,17 @@ const operatorParticipants = operatorAssignments.reduce<OperatorParticipant[]>((
   return participants;
 }, []);
 
+const operatorEquipmentAssessments: Record<string, string> = {
+  "cristiano-jose-de-moura":
+    "Excelente percepção operacional e segurança. Recomenda-se aprimorar o posicionamento do equipamento, conforme a condição da frente de serviço.",
+  "luciano-damasceno-ferreira":
+    "Excelente desempenho, com domínio dos recursos do equipamento, boa percepção operacional e segurança.",
+  "paulo-cesar-ferreira-de-melo":
+    "Necessita aprimoramento no manejo de material rochoso, evitando movimentar volumes superiores à capacidade da caçamba e utilizando o rompedor para fragmentação, quando aplicável.",
+  "quiterio-de-santana-do-ipanema":
+    "Necessita melhorar o posicionamento e estabilização do equipamento, principalmente em operações de carregamento realizadas em áreas inclinadas.",
+};
+
 const equipmentImageCounts = {
   "EEH-33": 5,
   "EEH-34": 4,
@@ -775,7 +786,7 @@ function EconomyCarousel({ cards, id, title }: { cards: EconomyCard[]; id: strin
 }
 
 function EconomySection() {
-  const dieselPrice = 6.95;
+  const dieselPrice = 6.15;
   const impact = buildOperationalImpact(readings, reportingPeriods, dieselPrice);
   const monitoringLabel = impact.monitoring.start && impact.monitoring.end
     ? `${impact.monitoring.start.slice(8, 10)}/${impact.monitoring.start.slice(5, 7)} a ${impact.monitoring.end.slice(8, 10)}/${impact.monitoring.end.slice(5, 7)}`
@@ -795,7 +806,7 @@ function EconomySection() {
 
   const resultCards: EconomyCard[] = [
     { value: impact.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado na 3ª janela", note: `litros não consumidos entre ${monitoringLabel}, comparados à média simples da referência`, calculation: <><p>Consumo médio de maio: {calculationNumber(impact.baseline.averageFuelRate)} L/h.</p><p> Consumo médio da 3ª janela: {calculationNumber(monitoringConsumption)} L/h.</p><p>({calculationNumber(impact.baseline.averageFuelRate)} − {calculationNumber(monitoringConsumption)}) × {calculationNumber(impact.monitoring.operatingHours)} h = {calculationNumber(impact.avoidedLiters, 3)} L.</p></> },
-    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "economia em diesel na 3ª janela", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L`, calculation: <><p>{calculationNumber(impact.avoidedLiters, 3)} L × {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L = {impact.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}.</p><p>Preço médio Brasil do diesel de 26/07 a 01/08/2026, segundo a <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-sintese-semanal/2026/sintese-precos-31.pdf" target="_blank" rel="noreferrer">ANP</a>.</p></> },
+    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "economia em diesel na 3ª janela", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L`, calculation: <><p>{calculationNumber(impact.avoidedLiters, 3)} L × {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L = {impact.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}.</p><p>Preço do diesel adotado no período de referência: {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L.</p></> },
     { value: impact.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "horas produtivas na 3ª janela", note: "horas que deixaram de ser ociosas e ficaram disponíveis para produzir na janela final", calculation: <><p>Ociosidade de maio: {calculationNumber(impact.baseline.idleRate)}%. Ociosidade da 3ª janela: {calculationNumber(impact.monitoring.idleRate)}%.</p><p>({calculationNumber(impact.baseline.idleRate)}% − {calculationNumber(impact.monitoring.idleRate)}%) × {calculationNumber(impact.monitoring.operatingHours)} h = {calculationNumber(impact.avoidedIdleHours, 3)} h.</p></> },
   ];
   const projectionCards: EconomyCard[] = [
@@ -846,12 +857,12 @@ function operatorGuidance(operatorId: string) {
   else if (latest.productive < 80) tips.push("A produtividade está na faixa intermediária; eliminar pequenas interrupções aproxima o operador do desafio de 80%.");
   else tips.push("Produtividade no nível de desafio: mantenha o ritmo com segurança e consistência.");
 
-  return { participant, latest, period, tips };
+  return { participant, latest, period, tips, equipmentAssessment: operatorEquipmentAssessments[operatorId] };
 }
 
 function ContinuitySection() {
   const [selectedOperator, setSelectedOperator] = useState(operatorParticipants[0].id);
-  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentAlias>(equipmentCareRecords[0].alias);
+  const [selectedEquipment, setSelectedEquipment] = useState<"Geral" | EquipmentAlias>("Geral");
   const [openedEquipmentImage, setOpenedEquipmentImage] = useState<EquipmentCareImage | null>(null);
   const guidance = operatorGuidance(selectedOperator);
   const equipmentRecord = equipmentCareRecords.find((record) => record.alias === selectedEquipment) ?? equipmentCareRecords[0];
@@ -902,12 +913,19 @@ function ContinuitySection() {
             </div>
             <div className="continuity-panel-content">
               <span className="card-kicker">Para os equipamentos</span>
-              <h3>Manutenção em dia, produção com garantia.</h3>
-              <ul className="equipment-checklist">
-                <li><b>01</b><div><strong>Troca dos dentes da caçamba</strong><p>Inspecione antes do turno e programe a troca ao encontrar trincas, quebras, folga ou desgaste acentuado. Imobilize o equipamento e siga o procedimento de serviço antes de intervir.</p></div></li>
-                <li><b>02</b><div><strong>Limpeza do radiador</strong><p>Com o motor desligado e frio, retire poeira e resíduos no sentido contrário ao fluxo do ar, respeitando a pressão indicada no manual e sem deformar as aletas.</p></div></li>
-              </ul>
+              <h3>Cuidados que sustentam o desempenho.</h3>
               <div className="equipment-tip-selector" role="group" aria-label="Escolha um equipamento">
+                <button
+                  type="button"
+                  className={selectedEquipment === "Geral" ? "is-active" : ""}
+                  aria-pressed={selectedEquipment === "Geral"}
+                  onClick={() => {
+                    setSelectedEquipment("Geral");
+                    setOpenedEquipmentImage(null);
+                  }}
+                >
+                  Geral
+                </button>
                 {equipmentCareRecords.map((record) => (
                   <button
                     type="button"
@@ -923,15 +941,31 @@ function ContinuitySection() {
                   </button>
                 ))}
               </div>
-              <div className="equipment-photo-head"><strong>{selectedEquipment}</strong><span>{equipmentRecord.images.length} registros · clique para ampliar</span></div>
-              <div className="equipment-photo-strip" aria-label={`Registros de inspeção do equipamento ${selectedEquipment}`}>
-                {equipmentRecord.images.map((image, index) => (
-                  <button type="button" key={image.src} onClick={() => setOpenedEquipmentImage(image)} aria-label={`Ampliar registro ${index + 1} do ${selectedEquipment}`}>
-                    <Image src={image.src} alt={image.alt} width={180} height={130} loading="lazy" sizes="110px" />
-                    <span aria-hidden="true">↗</span>
-                  </button>
-                ))}
-              </div>
+              {selectedEquipment === "Geral" ? (
+                <ul className="equipment-checklist">
+                  <li><b>01</b><div><strong>Sistema de arrefecimento</strong><p>Reforçar a limpeza e a inspeção de radiadores e colmeias, além do controle da concentração de aditivo no fluido.</p></div></li>
+                  <li><b>02</b><div><strong>Conjunto de trabalho</strong><p>Acompanhar o desgaste de dentes e bordas de ataque e as folgas em pinos e buchas, utilizando FPS adequada ao solo e priorizando Serviço Severo.</p></div></li>
+                  <li><b>03</b><div><strong>Eficiência operacional</strong><p>Aplicar Modo Power, Shutdown, ajuste do Pick da bomba, Power Boost e posicionamento a 45° para otimizar ciclos, produtividade e consumo.</p></div></li>
+                  <li><b>04</b><div><strong>Operação</strong><p>Manter o bom nível de domínio e segurança, reforçando posicionamento, estabilidade e manejo de material rochoso.</p></div></li>
+                  <li><b>05</b><div><strong>Recomendação geral</strong><p>Intensificar a manutenção preventiva, a padronização operacional e o treinamento para ampliar disponibilidade, produtividade, vida útil dos componentes e eficiência energética.</p></div></li>
+                </ul>
+              ) : (
+                <>
+                  <ul className="equipment-checklist equipment-machine-checklist">
+                    <li><b>01</b><div><strong>Troca dos dentes da caçamba</strong><p>Inspecione antes do turno e programe a troca ao encontrar trincas, quebras, folga ou desgaste acentuado. Imobilize o equipamento e siga o procedimento de serviço antes de intervir.</p></div></li>
+                    <li><b>02</b><div><strong>Limpeza do radiador</strong><p>Com o motor desligado e frio, retire poeira e resíduos no sentido contrário ao fluxo do ar, respeitando a pressão indicada no manual e sem deformar as aletas.</p></div></li>
+                  </ul>
+                  <div className="equipment-photo-head"><strong>{selectedEquipment}</strong><span>{equipmentRecord.images.length} registros · clique para ampliar</span></div>
+                  <div className="equipment-photo-strip" aria-label={`Registros de inspeção do equipamento ${selectedEquipment}`}>
+                    {equipmentRecord.images.map((image, index) => (
+                      <button type="button" key={image.src} onClick={() => setOpenedEquipmentImage(image)} aria-label={`Ampliar registro ${index + 1} do ${selectedEquipment}`}>
+                        <Image src={image.src} alt={image.alt} width={180} height={130} loading="lazy" sizes="110px" />
+                        <span aria-hidden="true">↗</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </article>
           <article className="continuity-panel tips-card" tabIndex={0} onMouseEnter={(event) => releaseFocusFromOtherPanel(event.currentTarget)} onMouseLeave={(event) => releaseFocusOnMouseLeave(event.currentTarget)}>
@@ -940,13 +974,17 @@ function ContinuitySection() {
             </div>
             <div className="continuity-panel-content">
               <span className="card-kicker">Para os operadores</span>
-              <h3>Dicas sob medida para cada resultado.</h3>
+              <h3>Feedback individual de operação.</h3>
               <div className="operator-tip-selector" role="group" aria-label="Escolha um operador">
                 {operatorParticipants.map((participant) => <button type="button" key={participant.id} className={selectedOperator === participant.id ? "is-active" : ""} aria-pressed={selectedOperator === participant.id} onClick={() => setSelectedOperator(participant.id)}>{participant.name}</button>)}
               </div>
               <div className="operator-tip-summary">
                 <div><span>{guidance.participant.name}</span><strong>Resultado individual</strong><small>{guidance.period.longLabel}</small></div>
                 <p><b>{formatMetric(guidance.latest.consumption, "consumption")}</b> consumo <b>{formatMetric(guidance.latest.idle, "idle")}</b> ociosidade <b>{formatMetric(guidance.latest.productive, "productive")}</b> produtividade</p>
+              </div>
+              <div className="operator-equipment-assessment">
+                <strong>Avaliação da operação dos equipamentos</strong>
+                <p>{guidance.equipmentAssessment}</p>
               </div>
               <ul>{guidance.tips.map((tip, index) => <li key={tip}><b>{String(index + 1).padStart(2, "0")}</b>{tip}</li>)}</ul>
             </div>

@@ -174,6 +174,7 @@ describe("ProjectExperience", () => {
     expect(screen.getByRole("heading", { name: /Valor gerado na janela final/i })).toBeInTheDocument();
     expect(screen.getByText("combustível poupado na 3ª janela")).toBeInTheDocument();
     expect(screen.getByText("projeção de economia em diesel")).toBeInTheDocument();
+    expect(screen.getByText(/usando diesel a R\$\s*6,15\/L/i)).toBeInTheDocument();
     expect(screen.getAllByText(/^R\$\s.*,[0-9]{2}$/, { selector: ".economy-grid > li > strong" })).toHaveLength(2);
     expect(screen.getByText(/Referência · 01\/05 a 31\/05/i)).toBeInTheDocument();
     expect(screen.getByText(/Janela final · 01\/08 a 13\/08/i)).toBeInTheDocument();
@@ -187,20 +188,45 @@ describe("ProjectExperience", () => {
     fireEvent.click(screen.getByRole("button", { name: "Próximo card de resultados da 3ª janela" }));
     expect(screen.getByRole("button", { name: "Ir para economia em diesel na 3ª janela" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Ir para projeção de combustível poupado" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Dicas sob medida para cada resultado.")).toBeInTheDocument();
+    expect(screen.getByText("Feedback individual de operação.")).toBeInTheDocument();
     expect(document.querySelectorAll(".continuity-panel-closed")).toHaveLength(3);
     expect(screen.getByRole("link", { name: /Planejar o próximo ciclo/i })).toHaveAttribute("href", "#parceiros");
+  });
+
+  it("exibe a avaliação da operação dos equipamentos para cada operador", () => {
+    render(<ProjectExperience />);
+    const continuity = document.getElementById("continuidade") as HTMLElement;
+    const equipmentAssessment = continuity.querySelector(".operator-equipment-assessment") as HTMLElement;
+
+    expect(within(continuity).getByText("Avaliação da operação dos equipamentos")).toBeInTheDocument();
+    expect(within(equipmentAssessment).getByText(/manejo de material rochoso/i)).toBeInTheDocument();
+
+    fireEvent.click(within(continuity).getByRole("button", { name: "Cristiano José de Moura" }));
+    expect(within(continuity).getByText(/Excelente percepção operacional e segurança/i)).toBeInTheDocument();
+
+    fireEvent.click(within(continuity).getByRole("button", { name: "Luciano Damasceno Ferreira" }));
+    expect(within(continuity).getByText(/domínio dos recursos do equipamento/i)).toBeInTheDocument();
+
+    fireEvent.click(within(continuity).getByRole("button", { name: "Quitério de Santana do Ipanema" }));
+    expect(within(continuity).getByText(/posicionamento e estabilização do equipamento/i)).toBeInTheDocument();
   });
 
   it("separa os cuidados por equipamento e amplia os registros fotográficos", () => {
     render(<ProjectExperience />);
     const continuity = document.getElementById("continuidade") as HTMLElement;
 
-    expect(within(continuity).getByText("Manutenção em dia, produção com garantia.")).toBeInTheDocument();
-    expect(within(continuity).getByText("Troca dos dentes da caçamba")).toBeInTheDocument();
-    expect(within(continuity).getByText("Limpeza do radiador")).toBeInTheDocument();
+    expect(within(continuity).getByText("Cuidados que sustentam o desempenho.")).toBeInTheDocument();
+    expect(within(continuity).getByRole("button", { name: "Geral" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(continuity).getByText("Sistema de arrefecimento")).toBeInTheDocument();
+    expect(within(continuity).getByText("Conjunto de trabalho")).toBeInTheDocument();
+    expect(within(continuity).getByText("Eficiência operacional")).toBeInTheDocument();
+    expect(within(continuity).getByText("Operação")).toBeInTheDocument();
+    expect(within(continuity).getByText("Recomendação geral")).toBeInTheDocument();
 
     fireEvent.click(within(continuity).getByRole("button", { name: "EEH-34" }));
+    expect(within(continuity).queryByText("Sistema de arrefecimento")).not.toBeInTheDocument();
+    expect(within(continuity).getByText("Troca dos dentes da caçamba")).toBeInTheDocument();
+    expect(within(continuity).getByText("Limpeza do radiador")).toBeInTheDocument();
     expect(within(continuity).getByText("4 registros · clique para ampliar")).toBeInTheDocument();
     fireEvent.click(within(continuity).getByRole("button", { name: "Ampliar registro 1 do EEH-34" }));
 

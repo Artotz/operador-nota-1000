@@ -402,14 +402,17 @@ button { color: inherit; }
 .card-kicker { color:var(--yellow); font-size:13px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
 .continuity-panels h3 { margin:19px 0 20px; max-width:660px; font:400 clamp(34px,3.5vw,52px)/.96 Impact,"Arial Narrow",sans-serif; text-transform:uppercase; }
 .equipment-card { background:radial-gradient(circle at 0 100%,rgba(132,204,22,.1),transparent 35%),linear-gradient(145deg,rgba(255,255,255,.035),transparent); }
-.equipment-tip-selector { display:flex; gap:6px; margin-bottom:16px; }
+.equipment-card h3 { margin-bottom:14px; }
+.equipment-tip-selector { display:flex; gap:6px; margin-bottom:12px; }
 .equipment-tip-selector button { padding:9px 12px; border:1px solid var(--line); background:#0b0e0b; color:#8f978f; cursor:pointer; font-size:13px; font-weight:800; letter-spacing:.08em; }
 .equipment-tip-selector button:hover,.equipment-tip-selector button.is-active { border-color:var(--yellow); background:var(--yellow); color:#080b08; }
-.equipment-checklist { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0 0 16px; padding:0; list-style:none; }
-.equipment-checklist li { min-width:0; padding:13px; display:grid; grid-template-columns:26px 1fr; gap:8px; border:1px solid var(--line); background:rgba(0,0,0,.12); }
+.equipment-checklist { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin:0 0 12px; padding:0; list-style:none; }
+.equipment-checklist li { min-width:0; padding:10px 11px; display:grid; grid-template-columns:24px 1fr; gap:7px; border:1px solid var(--line); background:rgba(0,0,0,.12); }
+.equipment-checklist li:last-child { grid-column:1 / -1; border-color:rgba(244,196,0,.28); background:rgba(244,196,0,.055); }
+.equipment-machine-checklist li:last-child { grid-column:auto; border-color:var(--line); background:rgba(0,0,0,.12); }
 .equipment-checklist li > b { color:var(--yellow); font-size:13px; letter-spacing:.1em; }
-.equipment-checklist strong { display:block; color:#fff; font-size:15px; text-transform:uppercase; }
-.equipment-checklist p { margin:6px 0 0; color:#8e978e; font-size:14px; line-height:1.5; }
+.equipment-checklist strong { display:block; color:#fff; font-size:13px; line-height:1.15; text-transform:uppercase; }
+.equipment-checklist p { margin:4px 0 0; color:#8e978e; font-size:12.5px; line-height:1.35; }
 .equipment-photo-head { margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .equipment-photo-head strong { color:#fff; font:400 21px/1 Impact,"Arial Narrow",sans-serif; }
 .equipment-photo-head span { color:#687168; font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
@@ -433,6 +436,9 @@ button { color: inherit; }
 .operator-tip-summary small { margin-top:5px; color:#667066; font-size:12px; }
 .operator-tip-summary p { margin:0; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:5px 12px; color:#747d74; font-size:13px; }
 .operator-tip-summary p b { color:#fff; }
+.operator-equipment-assessment { margin-bottom:4px; padding:14px 16px; border-left:3px solid var(--yellow); background:rgba(244,196,0,.06); }
+.operator-equipment-assessment strong { color:var(--yellow); font-size:12px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+.operator-equipment-assessment p { margin:7px 0 0; color:#d3d8d3; font-size:15px; line-height:1.45; }
 .sales-card { position:relative; overflow:hidden; background:radial-gradient(circle at 100% 0,rgba(244,196,0,.23),transparent 35%),var(--yellow); color:#0a0d0b; }
 .sales-card::after { content:"1000"; position:absolute; right:-30px; bottom:-35px; color:rgba(0,0,0,.07); font:400 190px/1 Impact,sans-serif; pointer-events:none; }
 .sales-card .continuity-panel-closed span,.sales-card .continuity-panel-closed strong,.sales-card .continuity-panel-closed small { color:#0a0d0b; }
@@ -521,6 +527,8 @@ button { color: inherit; }
   .operator-tip-selector { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .equipment-tip-selector { flex-wrap:wrap; }
   .equipment-checklist { grid-template-columns:1fr; }
+  .equipment-machine-checklist { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .equipment-checklist li:last-child { grid-column:auto; }
   .equipment-photo-strip { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .roadmap-lightbox { padding:68px 12px 25px; }
   .lightbox-image-wrap { height:70vh; }
