@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   LabelList,
@@ -309,7 +309,7 @@ function ScoreFormula() {
 function PeriodStrip({ periods }: { periods: ReportingPeriod[] }) {
   return (
     <div className="period-strip reveal" aria-label="Janelas de medição do projeto">
-      {(["baseline", "window1", "window2"] as PhaseKey[]).map((phase, index) => {
+      {(["baseline", "window1", "window2", "window3"] as PhaseKey[]).map((phase, index) => {
         const group = periods.filter((period) => period.phase === phase);
         const available = group.filter((period) => readings.some((reading) => reading.periodStart === period.start));
         const complete = available.length === group.length;
@@ -320,7 +320,7 @@ function PeriodStrip({ periods }: { periods: ReportingPeriod[] }) {
               <b>{group[0].phaseLabel}</b>
               <p>{group.map((period) => period.longLabel).join(" • ")}</p>
             </div>
-            <em>{complete ? "Concluída" : `${available.length}/${group.length} recebidas`}</em>
+            <em>{complete ? "Concluída" : `${available.length}/${group.length} recebidos`}</em>
           </article>
         );
       })}
@@ -332,16 +332,11 @@ function ConsolidatedSection() {
   const [metric, setMetric] = useState<MetricKey>("consumption");
   const series = useMemo(() => buildPeriodSeries(metric), [metric]);
   const config = metricConfig[metric];
-  const baselineStarts = new Set(reportingPeriods.filter((period) => period.phase === "baseline").map((period) => period.start));
-  const evaluationStarts = new Set(reportingPeriods.filter((period) => period.phase !== "baseline").map((period) => period.start));
-  const baselineAverage = metricValue(readings.filter((reading) => baselineStarts.has(reading.periodStart)), metric) ?? 0;
-  const periodAverage = metricValue(readings.filter((reading) => evaluationStarts.has(reading.periodStart)), metric) ?? 0;
   const available = series.filter((item) => item.value !== null);
   const first = available[0]?.value ?? 0;
   const latest = available.at(-1)?.value ?? 0;
-  const usesPeriodAverage = metric === "consumption";
-  const startValue = usesPeriodAverage ? baselineAverage : first;
-  const endValue = usesPeriodAverage ? periodAverage : latest;
+  const startValue = first;
+  const endValue = latest;
   const improvement = config.lowerIsBetter ? startValue - endValue : endValue - startValue;
 
   return (
@@ -349,8 +344,8 @@ function ConsolidatedSection() {
       <div className="section-shell">
         <SectionHeading
           eyebrow="04 — Evolução consolidada"
-          title="Seis quinzenas. Uma operação em movimento."
-          text="Os dados da frota foram ponderados pelas horas efetivamente operadas para comparar períodos de intensidades diferentes."
+          title="Uma operação em movimento."
+          text="O consumo mostra a média simples das máquinas; ociosidade e produtividade consideram a participação das horas operadas em cada relatório."
         />
         <PeriodStrip periods={reportingPeriods} />
         <div className="chart-card reveal">
@@ -363,10 +358,10 @@ function ConsolidatedSection() {
             <MetricToggle metric={metric} onChange={setMetric} />
           </div>
           <div className="chart-summary">
-            <div><span>{usesPeriodAverage ? "Consumo prévio médio" : "Início"}</span><strong>{formatMetric(startValue, metric)}</strong></div>
-            <div><span>{usesPeriodAverage ? "Média do período" : "Último registro"}</span><strong>{formatMetric(endValue, metric)}</strong></div>
+            <div><span>Início</span><strong>{formatMetric(startValue, metric)}</strong></div>
+            <div><span>Último registro</span><strong>{formatMetric(endValue, metric)}</strong></div>
             <div className={improvement >= 0 ? "positive" : "negative"}>
-              <span>{usesPeriodAverage ? "Ganho médio no período" : "Ganho no período"}</span><strong>{improvement >= 0 ? "+" : ""}{formatMetric(improvement, metric)}</strong>
+              <span>Ganho no período</span><strong>{improvement >= 0 ? "+" : ""}{formatMetric(improvement, metric)}</strong>
             </div>
           </div>
           <div className="main-chart" aria-label={`Gráfico consolidado de ${config.label}`}>
@@ -496,7 +491,7 @@ function OperatorSection() {
                   <i style={{ backgroundColor: operatorColors[index] }} />
                   <span>{participant.name}</span>
                   <strong>{formatMetric(latest, metric)}</strong>
-                  <small>{formatHours(latestHours)} na última quinzena</small>
+                  <small>{formatHours(latestHours)} no último relatório</small>
                   <small>{formatHours(trackedHours)} acompanhadas</small>
                   <em>{isPinned ? "Seleção fixada" : "Clique para fixar"}</em>
                 </button>
@@ -668,33 +663,17 @@ function AnimatedEconomyValue({
   return <strong ref={ref}>{format(current)}</strong>;
 }
 
-function EconomySection() {
+type EconomyCard = {
+  value: number;
+  format: (value: number) => string;
+  label: string;
+  note: string;
+  calculation: ReactNode;
+};
+
+function EconomyCarousel({ cards, id, title }: { cards: EconomyCard[]; id: string; title: string }) {
   const railRef = useRef<HTMLUListElement>(null);
   const [activeCard, setActiveCard] = useState(0);
-  const dieselPrice = 6.95;
-  const impact = buildOperationalImpact(readings, reportingPeriods, dieselPrice);
-  // const productivityGain = impact.baseline.idleRate - impact.monitoring.idleRate;
-  const monitoringLabel = impact.monitoring.start && impact.monitoring.end
-    ? `${impact.monitoring.start.slice(8, 10)}/${impact.monitoring.start.slice(5, 7)} a ${impact.monitoring.end.slice(8, 10)}/${impact.monitoring.end.slice(5, 7)}`
-    : "período disponível";
-  const projectionLabel = impact.projectedThroughYearEnd.end
-    ? `até ${impact.projectedThroughYearEnd.end.slice(8, 10)}/${impact.projectedThroughYearEnd.end.slice(5, 7)}`
-    : "até o fim do ano";
-  const baselinePeriods = reportingPeriods.filter((period) => period.phase === "baseline");
-  const referenceLabel = baselinePeriods.length
-    ? `${baselinePeriods[0].longLabel.split(" a ")[0]} a ${baselinePeriods.at(-1)?.longLabel.split(" a ").at(-1)}`
-    : "duas primeiras quinzenas";
-
-  const cards = [
-    { value: impact.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado acumulado", note: `litros não consumidos entre ${monitoringLabel}, comparados ao consumo de referência` },
-    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "economia em diesel acumulada", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L` },
-    { value: impact.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "horas produtivas geradas", note: "horas que deixaram de ser ociosas e ficaram disponíveis para produzir no período acumulado" },
-    { value: impact.projectedThroughYearEnd.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} L`, label: "projeção de combustível poupado", note: `acumulado estimado ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
-    { value: impact.projectedThroughYearEnd.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "projeção de economia em diesel", note: `valor estimado ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
-    { value: impact.projectedThroughYearEnd.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "projeção de horas produtivas", note: `horas acumuladas estimadas ${projectionLabel}, mantendo a média diária de todo o período avaliado` },
-    // { value: productivityGain, format: (value: number) => `${value >= 0 ? "+" : ""}${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p.`, label: "ganho médio de produtividade", note: "variação da parcela de horas realmente produtivas. É uma taxa, portanto não deve ser somada nem projetada" },
-    { value: 8, format: (value: number) => `${Math.round(value)} dias`, label: "acompanhamento da operação", note: "presença em campo para observar a rotina, orientar a equipe e consolidar boas práticas" },
-  ];
 
   const goToCard = (index: number) => {
     const rail = railRef.current;
@@ -717,40 +696,82 @@ function EconomySection() {
   };
 
   return (
+    <section className="economy-carousel reveal" aria-labelledby={`${id}-title`}>
+      <h3 className="economy-carousel-title" id={`${id}-title`}>{title}</h3>
+      <div className="economy-controls" aria-label={`Navegação de ${title.toLocaleLowerCase("pt-BR")}`}>
+        <p><b>{String(activeCard + 1).padStart(2, "0")}</b> / {String(cards.length).padStart(2, "0")} <span>Arraste para passar</span></p>
+        <div><button type="button" onClick={() => goToCard(activeCard - 1)} aria-label={`Card anterior de ${title.toLocaleLowerCase("pt-BR")}`}>←</button><button type="button" onClick={() => goToCard(activeCard + 1)} aria-label={`Próximo card de ${title.toLocaleLowerCase("pt-BR")}`}>→</button></div>
+      </div>
+      <ul className="economy-grid" ref={railRef} onScroll={syncActiveCard} aria-live="polite">
+        {cards.map((card, index) => (
+          <li key={card.label} aria-label={`${title}: resultado ${index + 1} de ${cards.length}`}>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <div className="economy-info">
+              <button type="button" className="economy-info-button" aria-label={`Ver cálculo de ${card.label}`} aria-describedby={`${id}-calculation-${index}`}>i</button>
+              <div className="economy-tooltip" id={`${id}-calculation-${index}`} role="tooltip">
+                {card.calculation}
+              </div>
+            </div>
+            {activeCard === index
+              ? <AnimatedEconomyValue value={card.value} format={card.format} />
+              : <strong>{card.format(card.value)}</strong>}
+            <h3>{card.label}</h3>
+            <p>{card.note}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="economy-pagination" role="group" aria-label={`Escolha um card de ${title.toLocaleLowerCase("pt-BR")}`}>
+        {cards.map((card, index) => <button type="button" key={card.label} className={activeCard === index ? "is-active" : ""} aria-label={`Ir para ${card.label}`} aria-pressed={activeCard === index} onClick={() => goToCard(index)}><span /></button>)}
+      </div>
+    </section>
+  );
+}
+
+function EconomySection() {
+  const dieselPrice = 6.95;
+  const impact = buildOperationalImpact(readings, reportingPeriods, dieselPrice);
+  const monitoringLabel = impact.monitoring.start && impact.monitoring.end
+    ? `${impact.monitoring.start.slice(8, 10)}/${impact.monitoring.start.slice(5, 7)} a ${impact.monitoring.end.slice(8, 10)}/${impact.monitoring.end.slice(5, 7)}`
+    : "período disponível";
+  const projectionLabel = impact.projectedThroughYearEnd.end
+    ? `até ${impact.projectedThroughYearEnd.end.slice(8, 10)}/${impact.projectedThroughYearEnd.end.slice(5, 7)}`
+    : "até o fim do ano";
+  const baselinePeriods = reportingPeriods.filter((period) => period.phase === "baseline");
+  const referenceLabel = baselinePeriods.length
+    ? `${baselinePeriods[0].longLabel.split(" a ")[0]} a ${baselinePeriods.at(-1)?.longLabel.split(" a ").at(-1)}`
+    : "período de referência";
+  const monitoringConsumption = aggregateReadings(
+    readings.filter((reading) => reading.periodStart === impact.monitoring.start),
+  ).consumption;
+  const calculationNumber = (value: number, maximumFractionDigits = 4) =>
+    value.toLocaleString("pt-BR", { minimumFractionDigits: maximumFractionDigits, maximumFractionDigits });
+
+  const resultCards: EconomyCard[] = [
+    { value: impact.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`, label: "combustível poupado na 3ª janela", note: `litros não consumidos entre ${monitoringLabel}, comparados à média simples da referência`, calculation: <><p>Consumo médio de maio: {calculationNumber(impact.baseline.averageFuelRate)} L/h.</p><p> Consumo médio da 3ª janela: {calculationNumber(monitoringConsumption)} L/h.</p><p>({calculationNumber(impact.baseline.averageFuelRate)} − {calculationNumber(monitoringConsumption)}) × {calculationNumber(impact.monitoring.operatingHours)} h = {calculationNumber(impact.avoidedLiters, 3)} L.</p></> },
+    { value: impact.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "economia em diesel na 3ª janela", note: `valor dos ${round(impact.avoidedLiters, 1).toLocaleString("pt-BR")} litros poupados, usando diesel a ${dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L`, calculation: <><p>{calculationNumber(impact.avoidedLiters, 3)} L × {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L = {impact.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}.</p><p>Preço médio Brasil do diesel de 26/07 a 01/08/2026, segundo a <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-sintese-semanal/2026/sintese-precos-31.pdf" target="_blank" rel="noreferrer">ANP</a>.</p></> },
+    { value: impact.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "horas produtivas na 3ª janela", note: "horas que deixaram de ser ociosas e ficaram disponíveis para produzir na janela final", calculation: <><p>Ociosidade de maio: {calculationNumber(impact.baseline.idleRate)}%. Ociosidade da 3ª janela: {calculationNumber(impact.monitoring.idleRate)}%.</p><p>({calculationNumber(impact.baseline.idleRate)}% − {calculationNumber(impact.monitoring.idleRate)}%) × {calculationNumber(impact.monitoring.operatingHours)} h = {calculationNumber(impact.avoidedIdleHours, 3)} h.</p></> },
+  ];
+  const projectionCards: EconomyCard[] = [
+    { value: impact.projectedThroughYearEnd.avoidedLiters, format: (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} L`, label: "projeção de combustível poupado", note: `acumulado estimado ${projectionLabel}, mantendo a média diária da janela final`, calculation: <><p>A janela observada tem {impact.monitoring.observedDays} dias e a projeção até 31/12 cobre {impact.projectedThroughYearEnd.days} dias.</p><p>{calculationNumber(impact.avoidedLiters, 3)} L ÷ {impact.monitoring.observedDays} × {impact.projectedThroughYearEnd.days} = {calculationNumber(impact.projectedThroughYearEnd.avoidedLiters, 3)} L.</p></> },
+    { value: impact.projectedThroughYearEnd.estimatedDieselSavings, format: (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "projeção de economia em diesel", note: `valor estimado ${projectionLabel}, mantendo a média diária da janela final`, calculation: <><p>{calculationNumber(impact.projectedThroughYearEnd.avoidedLiters, 3)} L × {dieselPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}/L.</p><p>Resultado projetado: {impact.projectedThroughYearEnd.estimatedDieselSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}.</p></> },
+    { value: impact.projectedThroughYearEnd.avoidedIdleHours, format: (value: number) => `+${formatHours(value)}`, label: "projeção de horas produtivas", note: `horas acumuladas estimadas ${projectionLabel}, mantendo a média diária da janela final`, calculation: <><p>{calculationNumber(impact.avoidedIdleHours, 3)} h ÷ {impact.monitoring.observedDays} × {impact.projectedThroughYearEnd.days}.</p><p>Resultado projetado: {calculationNumber(impact.projectedThroughYearEnd.avoidedIdleHours, 3)} h produtivas.</p></> },
+  ];
+
+  return (
     <section id="economias" className="story-section economy-section">
       <div className="section-shell">
         <SectionHeading
           eyebrow="07 — Valor gerado"
-          title="Valor acumulado desde o início do acompanhamento."
-          text="Veja abaixo o que já foi medido e o que pode ser alcançado até dezembro, sempre comparando a operação com o seu ponto de partida."
+          title="Valor gerado na janela final."
+          text="A 3ª janela é comparada diretamente com a referência de maio, preservando a regra de consolidação de cada indicador."
         />
         <ol className="value-timeline reveal" aria-label="Datas usadas nos cálculos de valor gerado">
           <li><span>01</span><div><b>Referência · {referenceLabel}</b><p>Mostra o consumo e a ociosidade antes do acompanhamento. Ela é a régua de comparação, não entra na soma.</p></div></li>
-          <li><span>02</span><div><b>Acumulado medido · {monitoringLabel}</b><p>Soma todas as quinzenas com dados após a referência. É o valor já gerado de fato.</p></div></li>
-          <li><span>03</span><div><b>Projeção · {projectionLabel}</b><p>Parte do acumulado medido e mantém a média diária de todo o período avaliado ({monitoringLabel}). É uma estimativa, não um resultado realizado.</p></div></li>
+          <li><span>02</span><div><b>Janela final · {monitoringLabel}</b><p>Compara os indicadores calculados da 3ª janela com a referência. É o valor medido nesse intervalo.</p></div></li>
+          <li><span>03</span><div><b>Projeção · {projectionLabel}</b><p>Parte do resultado da janela final e mantém sua média diária ({monitoringLabel}).</p></div></li>
         </ol>
-        <div className="economy-carousel reveal">
-          <div className="economy-controls" aria-label="Navegação dos resultados">
-            <p><b>{String(activeCard + 1).padStart(2, "0")}</b> / {String(cards.length).padStart(2, "0")} <span>Arraste para passar</span></p>
-            <div><button type="button" onClick={() => goToCard(activeCard - 1)} aria-label="Card anterior">←</button><button type="button" onClick={() => goToCard(activeCard + 1)} aria-label="Próximo card">→</button></div>
-          </div>
-          <ul className="economy-grid" ref={railRef} onScroll={syncActiveCard} aria-live="polite">
-            {cards.map((card, index) => (
-              <li key={card.label} aria-label={`Resultado ${index + 1} de ${cards.length}`}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                {activeCard === index
-                  ? <AnimatedEconomyValue value={card.value} format={card.format} />
-                  : <strong>{card.format(card.value)}</strong>}
-                <h3>{card.label}</h3>
-                <p>{card.note}</p>
-              </li>
-            ))}
-          </ul>
-          <div className="economy-pagination" role="group" aria-label="Escolha um resultado">
-            {cards.map((card, index) => <button type="button" key={card.label} className={activeCard === index ? "is-active" : ""} aria-label={`Ir para ${card.label}`} aria-pressed={activeCard === index} onClick={() => goToCard(index)}><span /></button>)}
-          </div>
-        </div>
-        <p className="method-note reveal"><b>Como calculamos:</b> para cada hora trabalhada após 14/06, estimamos quanto seria consumido e quanto tempo ficaria ocioso se a operação mantivesse a referência de 14/05 a 13/06. A diferença é o valor gerado. Para a projeção, dividimos o ganho acumulado pelos dias de todo o período avaliado ({monitoringLabel}) e mantemos essa média diária até 31/12. O diesel foi precificado em R$ 6,95/L — média Brasil de 26/07 a 01/08/2026, segundo a <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-sintese-semanal/2026/sintese-precos-31.pdf" target="_blank" rel="noreferrer">ANP</a>.</p>
+        <EconomyCarousel cards={resultCards} id="economy-results" title="Resultados da 3ª janela" />
+        <EconomyCarousel cards={projectionCards} id="economy-projections" title="Projeções até 31/12" />
       </div>
     </section>
   );
@@ -959,11 +980,11 @@ export function ProjectExperience() {
             className="hero-construtora-logo"
             src="/project-assets/brand/logo-fp-construtora.png"
             alt="F.P. Construtora"
-            width={180}
-            height={100}
+            width={190}
+            height={190}
             priority
           />
-          <Image className="hero-csc-logo" src="/project-assets/brand/logo-csc.png" alt="CSC" width={76} height={76} priority />
+          <Image className="hero-csc-logo" src="/project-assets/brand/logo-csc.png" alt="CSC" width={190} height={190} priority />
         </div>
         <div className="hero-content">
           <Image className="hero-project-logo" src="/project-assets/brand/logo-operador.png" alt="Operador Nota 1.000 — Excelência Operacional" width={420} height={420} priority />

@@ -1,4 +1,4 @@
-export type PhaseKey = "baseline" | "window1" | "window2";
+export type PhaseKey = "baseline" | "window1" | "window2" | "window3";
 
 export type MetricKey = "consumption" | "idle" | "productive" | "hours";
 

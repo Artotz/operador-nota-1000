@@ -39,7 +39,16 @@ describe("ProjectExperience", () => {
     expect(screen.getByAltText("Operador Nota 1.000 — Excelência Operacional")).toBeInTheDocument();
     expect(screen.getByAltText("Equipe do Projeto Operador Nota 1.000 em campo")).toHaveAttribute("src", "/project-assets/hero/IMG_4736.JPG.jpeg");
     expect(screen.queryByText(/Performance que/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Seis quinzenas. Uma operação em movimento." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Quatro relatórios mensais. Uma operação em movimento." })).toBeInTheDocument();
+    expect(screen.getByText("01/05 a 31/05")).toBeInTheDocument();
+    expect(screen.getByText("01/06 a 30/06")).toBeInTheDocument();
+    expect(screen.getByText("01/07 a 31/07")).toBeInTheDocument();
+    expect(screen.getAllByText("01/08 a 13/08").length).toBeGreaterThan(0);
+    expect(screen.getByText("1ª janela de acompanhamento")).toBeInTheDocument();
+    expect(screen.getByText("2ª janela de acompanhamento")).toBeInTheDocument();
+    expect(screen.getByText("3ª janela de acompanhamento")).toBeInTheDocument();
+    expect(screen.getAllByText("Ago").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/parcial/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Dados da última quinzena recebidos")).not.toBeInTheDocument();
     expect(screen.queryByText("Classificação oficial")).not.toBeInTheDocument();
     ["EEH-33", "EEH-34", "EEH-35", "EEH-36", "EEH-37"].forEach((alias) => {
@@ -54,17 +63,19 @@ describe("ProjectExperience", () => {
     const productivityButton = within(consolidated as HTMLElement).getByRole("button", {
       name: "Produtividade",
     });
-    expect(within(consolidated as HTMLElement).getByText("Média do período")).toBeInTheDocument();
-    expect(within(consolidated as HTMLElement).getByText("Ganho médio no período")).toBeInTheDocument();
-    expect(within(consolidated as HTMLElement).getByText("28,7 l/h")).toBeInTheDocument();
-    expect(within(consolidated as HTMLElement).getByText("+1,1 l/h")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("Início")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("Último registro")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("Ganho no período")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("29,9 l/h")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("23,5 l/h")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("+6,4 l/h")).toBeInTheDocument();
     fireEvent.click(productivityButton);
     expect(productivityButton).toHaveAttribute("aria-pressed", "true");
     expect(within(consolidated as HTMLElement).getByText("Tempo efetivamente trabalhando")).toBeInTheDocument();
     expect(within(consolidated as HTMLElement).getByText("Último registro")).toBeInTheDocument();
     expect(within(consolidated as HTMLElement).getByText("Ganho no período")).toBeInTheDocument();
-    expect(within(consolidated as HTMLElement).getByText("80,6%")).toBeInTheDocument();
-    expect(within(consolidated as HTMLElement).getByText("+8,1%")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("79,5%")).toBeInTheDocument();
+    expect(within(consolidated as HTMLElement).getByText("+9,2%")).toBeInTheDocument();
   });
 
   it("updates the section rail from the scroll position", () => {
@@ -143,18 +154,26 @@ describe("ProjectExperience", () => {
     expect(partners.querySelector(".partner-logo small")).not.toBeInTheDocument();
   });
 
-  it("apresenta os acumulados e as projeções de valor gerado", () => {
+  it("apresenta os resultados da janela final e suas projeções", () => {
     render(<ProjectExperience />);
 
     expect(screen.queryByRole("button", { name: "Horas" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Valor acumulado desde o início do acompanhamento/i })).toBeInTheDocument();
-    expect(screen.getByText("combustível poupado acumulado")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Valor gerado na janela final/i })).toBeInTheDocument();
+    expect(screen.getByText("combustível poupado na 3ª janela")).toBeInTheDocument();
     expect(screen.getByText("projeção de economia em diesel")).toBeInTheDocument();
-    expect(screen.getAllByText(/^R\$\s.*,[0-9]{2}$/)).toHaveLength(2);
-    expect(screen.getByText(/Referência · 14\/05 a 13\/06/i)).toBeInTheDocument();
-    expect(screen.getByText(/Acumulado medido · 14\/06 a 13\/08/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Próximo card" }));
-    expect(screen.getByRole("button", { name: "Ir para economia em diesel acumulada" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByText(/^R\$\s.*,[0-9]{2}$/, { selector: ".economy-grid > li > strong" })).toHaveLength(2);
+    expect(screen.getByText(/Referência · 01\/05 a 31\/05/i)).toBeInTheDocument();
+    expect(screen.getByText(/Janela final · 01\/08 a 13\/08/i)).toBeInTheDocument();
+    expect(screen.queryByText("Como calculamos:")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Resultados da 3ª janela" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Projeções até 31/12" })).toBeInTheDocument();
+    expect(screen.queryByText("acompanhamento da operação")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("tooltip")).toHaveLength(6);
+    expect(screen.getByRole("button", { name: "Ver cálculo de combustível poupado na 3ª janela" })).toHaveAttribute("aria-describedby", "economy-results-calculation-0");
+    expect(screen.getByText(/Consumo médio de maio: 29,8948 L\/h/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Próximo card de resultados da 3ª janela" }));
+    expect(screen.getByRole("button", { name: "Ir para economia em diesel na 3ª janela" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Ir para projeção de combustível poupado" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Dicas sob medida para cada resultado.")).toBeInTheDocument();
     expect(document.querySelectorAll(".continuity-panel-closed")).toHaveLength(3);
     expect(screen.getByRole("link", { name: /Planejar o próximo ciclo/i })).toHaveAttribute("href", "#parceiros");

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import readXlsxFile from "read-excel-file/node";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const sourceDirectory = path.join(root, "edu");
+const sourceDirectory = path.join(root, "edu", "outros_relatorios");
 const outputFile = path.join(root, "app", "data", "machine-readings.json");
 
 if (!fs.existsSync(sourceDirectory)) {
@@ -17,7 +17,7 @@ const files = fs
   .sort((a, b) => a.localeCompare(b, "pt-BR"));
 
 if (!files.length) {
-  throw new Error("Nenhum relatório .xlsx foi encontrado na pasta edu.");
+  throw new Error("Nenhum relatório .xlsx foi encontrado na pasta edu/outros_relatorios.");
 }
 
 function isoDate(value) {
@@ -85,6 +85,6 @@ fs.writeFileSync(outputFile, `${JSON.stringify(readings, null, 2)}\n`, "utf8");
 
 const periods = new Set(readings.map((reading) => reading.periodStart)).size;
 console.log(
-  `Importação concluída: ${readings.length} registros, ${periods} quinzenas, ${files.length} arquivos.`,
+  `Importação concluída: ${readings.length} registros, ${periods} períodos mensais, ${files.length} arquivos.`,
 );
 console.log(`Saída: ${path.relative(root, outputFile)}`);

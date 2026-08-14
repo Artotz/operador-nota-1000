@@ -13,6 +13,10 @@ export const round = (value: number, precision = 2) => {
   return Math.round((value + Number.EPSILON) * factor) / factor;
 };
 
+function average(values: number[]) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
 export function aggregateReadings(readings: MachineReading[]): AggregatedMetrics {
   const fuelConsumed = readings.reduce((total, item) => total + item.fuelConsumed, 0);
   const idleHours = readings.reduce((total, item) => total + item.idleHours, 0);
@@ -27,7 +31,7 @@ export function aggregateReadings(readings: MachineReading[]): AggregatedMetrics
     engineHours,
     idleHours,
     productiveHours,
-    consumption: engineHours ? fuelConsumed / engineHours : 0,
+    consumption: average(readings.map((item) => item.averageFuelRate)),
     idle: engineHours ? (idleHours / engineHours) * 100 : 0,
     productive: engineHours ? (productiveHours / engineHours) * 100 : 0,
   };
@@ -46,10 +50,6 @@ export function telemetryScore(
     consumption: metrics.consumption <= 26 ? 25 : reduction >= 5 ? 10 : 0,
     productive: metrics.productive >= 80 ? 25 : metrics.productive >= 75 ? 10 : 0,
   };
-}
-
-function average(values: number[]) {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 }
 
 const nonNegative = (value: number) => (Number.isFinite(value) ? Math.max(0, value) : 0);
@@ -74,12 +74,18 @@ export function buildOperationalImpact(
   const baselineReadings = readings.filter((reading) =>
     baselinePeriods.some((period) => period.start === reading.periodStart),
   );
-  const monitoringReadings = readings.filter((reading) =>
+  const allMonitoringReadings = readings.filter((reading) =>
     monitoringPeriods.some((period) => period.start === reading.periodStart),
   );
   const availableMonitoringPeriods = monitoringPeriods.filter((period) =>
-    monitoringReadings.some((reading) => reading.periodStart === period.start),
+    allMonitoringReadings.some((reading) => reading.periodStart === period.start),
   );
+  const finalMonitoringPeriod = availableMonitoringPeriods.at(-1);
+  const monitoringReadings = finalMonitoringPeriod
+    ? allMonitoringReadings.filter(
+      (reading) => reading.periodStart === finalMonitoringPeriod.start,
+    )
+    : [];
   const baseline = aggregateReadings(baselineReadings);
   const monitoring = aggregateReadings(monitoringReadings);
   const periodMachineCount = new Set(
@@ -87,13 +93,13 @@ export function buildOperationalImpact(
   ).size;
   const price = nonNegative(dieselPricePerLiter);
   const avoidedLiters = nonNegative(
-    baseline.consumption * monitoring.engineHours - monitoring.fuelConsumed,
+    (baseline.consumption - monitoring.consumption) * monitoring.engineHours,
   );
   const avoidedIdleHours = nonNegative(
-    (baseline.idle / 100) * monitoring.engineHours - monitoring.idleHours,
+    ((baseline.idle - monitoring.idle) / 100) * monitoring.engineHours,
   );
-  const monitoringStart = availableMonitoringPeriods.at(0)?.start ?? null;
-  const monitoringEnd = availableMonitoringPeriods.at(-1)?.end ?? null;
+  const monitoringStart = finalMonitoringPeriod?.start ?? null;
+  const monitoringEnd = finalMonitoringPeriod?.end ?? null;
   const observedDays = calendarDaysInclusive(monitoringStart, monitoringEnd);
   const yearEnd = monitoringEnd ? `${monitoringEnd.slice(0, 4)}-12-31` : null;
   const projectedDays = calendarDaysInclusive(monitoringStart, yearEnd);

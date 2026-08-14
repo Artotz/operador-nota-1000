@@ -12,32 +12,31 @@ import type { AggregatedMetrics, MachineReading } from "@/app/lib/types";
 const readings = rawReadings as MachineReading[];
 
 describe("aggregateReadings", () => {
-  it("pondera as metricas consolidadas pelas horas operadas", () => {
-    const before = readings.filter((reading) => reading.periodStart < "2026-06-14");
+  it("usa media simples no consumo e pondera utilizacao pelas horas", () => {
+    const before = readings.filter((reading) => reading.periodStart === "2026-05-01");
     const firstWindow = readings.filter(
-      (reading) =>
-        reading.periodStart >= "2026-06-14" && reading.periodStart < "2026-07-14",
+      (reading) => reading.periodStart === "2026-06-01",
     );
-    const secondWindow = readings.filter((reading) => reading.periodStart >= "2026-07-14");
+    const secondWindow = readings.filter((reading) => reading.periodStart >= "2026-07-01");
 
     expect(aggregateReadings(before)).toMatchObject({
-      consumption: expect.closeTo(29.758, 3),
-      idle: expect.closeTo(25.59, 2),
-      productive: expect.closeTo(74.41, 2),
+      consumption: expect.closeTo(29.895, 3),
+      idle: expect.closeTo(29.67, 2),
+      productive: expect.closeTo(70.33, 2),
     });
     expect(aggregateReadings(firstWindow)).toMatchObject({
-      consumption: expect.closeTo(28.32, 2),
-      idle: expect.closeTo(26.01, 2),
-      productive: expect.closeTo(73.99, 2),
+      consumption: expect.closeTo(28.31, 2),
+      idle: expect.closeTo(24.62, 2),
+      productive: expect.closeTo(75.38, 2),
     });
     expect(aggregateReadings(secondWindow)).toMatchObject({
-      consumption: expect.closeTo(29.58, 2),
-      idle: expect.closeTo(19.67, 2),
-      productive: expect.closeTo(80.33, 2),
+      consumption: expect.closeTo(25.50, 2),
+      idle: expect.closeTo(23.73, 2),
+      productive: expect.closeTo(76.27, 2),
     });
   });
 
-  it("mantem todas as maquinas em todas as seis quinzenas importadas", () => {
+  it("mantem todas as maquinas nos quatro relatorios mensais", () => {
     const serials = new Set(operatorAssignments.map((assignment) => assignment.serial));
 
     expect(readings).toHaveLength(reportingPeriods.length * serials.size);
@@ -46,6 +45,11 @@ describe("aggregateReadings", () => {
       expect(periodReadings).toHaveLength(serials.size);
       expect(new Set(periodReadings.map((reading) => reading.serial))).toEqual(serials);
       expect(periodReadings.every((reading) => reading.periodEnd === period.end)).toBe(true);
+    });
+    expect(reportingPeriods.at(-1)).toMatchObject({
+      id: "august",
+      start: "2026-08-01",
+      end: "2026-08-13",
     });
   });
 });
@@ -90,16 +94,16 @@ describe("buildRanking", () => {
     expect(result.entries.every((entry) => entry.maximum === 100)).toBe(true);
     expect(result.entries.every((entry) => Number.isInteger(entry.score))).toBe(true);
     expect(result.entries.every((entry) => entry.periodScores.length === 1)).toBe(true);
-    expect(result.availableTrackedPeriods).toHaveLength(4);
+    expect(result.availableTrackedPeriods).toHaveLength(3);
 
-    const latestPeriod = reportingPeriods.find((period) => period.id === "window-2b");
+    const latestPeriod = reportingPeriods.find((period) => period.id === "august");
     expect(latestPeriod).toBeDefined();
     result.entries.forEach((entry) => {
       const serials = new Set(entry.serials);
       const baseline = aggregateReadings(
         readings.filter(
           (reading) =>
-            serials.has(reading.serial) && reading.periodStart < "2026-06-14",
+            serials.has(reading.serial) && reading.periodStart === "2026-05-01",
         ),
       );
       const latestReadings = readings.filter(
@@ -109,7 +113,7 @@ describe("buildRanking", () => {
       expect(latestReadings).toHaveLength(entry.serials.length);
       const telemetry = telemetryScore(aggregateReadings(latestReadings), baseline.consumption);
       const assignment = operatorAssignments.find((item) => item.operatorId === entry.id)!;
-      const behavior = assignment.behaviorScores.find((score) => score.periodId === "window-2b")!;
+      const behavior = assignment.behaviorScores.find((score) => score.periodId === "august")!;
       expect(entry.score).toBe(
         telemetry.consumption + telemetry.idle + telemetry.productive +
           behavior.safety + behavior.assetCare + behavior.attendance,
@@ -137,67 +141,73 @@ describe("buildRanking", () => {
   });
 
   it("so se torna oficial com a ultima janela esperada e suas avaliacoes", () => {
-    const withoutFinalPeriod = readings.filter((reading) => reading.periodStart !== "2026-07-30");
+    const withoutFinalPeriod = readings.filter((reading) => reading.periodStart !== "2026-08-01");
     expect(buildRanking(withoutFinalPeriod, reportingPeriods, operatorAssignments).isOfficial).toBe(false);
 
     const result = buildRanking(readings, reportingPeriods, operatorAssignments);
     expect(result.isOfficial).toBe(true);
     expect(result.entries).toHaveLength(4);
     expect(result.entries.every((entry) => entry.maximum === 100)).toBe(true);
-    expect(result.availableTrackedPeriods.at(-1)?.id).toBe("window-2b");
+    expect(result.availableTrackedPeriods.at(-1)?.id).toBe("august");
   });
 });
 
 describe("buildOperationalImpact", () => {
-  it("compara as duas quinzenas de baseline com todo o acompanhamento disponivel", () => {
+  it("compara maio com a janela final disponivel", () => {
     const result = buildOperationalImpact(readings, reportingPeriods);
     const baseline = aggregateReadings(
-      readings.filter((reading) => reading.periodStart < "2026-06-14"),
+      readings.filter((reading) => reading.periodStart === "2026-05-01"),
     );
     const monitoring = aggregateReadings(
-      readings.filter((reading) => reading.periodStart >= "2026-06-14"),
+      readings.filter((reading) => reading.periodStart === "2026-08-01"),
     );
     const expectedLiters = Math.max(
       0,
-      baseline.consumption * monitoring.engineHours - monitoring.fuelConsumed,
+      (baseline.consumption - monitoring.consumption) * monitoring.engineHours,
     );
     const expectedIdleHours = Math.max(
       0,
-      (baseline.idle / 100) * monitoring.engineHours - monitoring.idleHours,
+      ((baseline.idle - monitoring.idle) / 100) * monitoring.engineHours,
     );
 
     expect(result.baseline.operatingHours).toBeCloseTo(baseline.engineHours);
+    expect(result.baseline.averageFuelRate).toBeCloseTo(29.895, 3);
+    expect(result.baseline.idleRate).toBeCloseTo(29.67, 2);
     expect(result.monitoring.operatingHours).toBeCloseTo(monitoring.engineHours);
-    expect(result.monitoring.periodMachineCount).toBe(20);
+    expect(result.monitoring.idleRate).toBeCloseTo(20.51, 2);
+    expect(result.monitoring.periodMachineCount).toBe(5);
     expect(result.monitoring.averageHoursPerPeriodMachine).toBeCloseTo(
-      monitoring.engineHours / 20,
+      monitoring.engineHours / 5,
     );
     expect(result.monitoring).toMatchObject({
-      start: "2026-06-14",
+      start: "2026-08-01",
       end: "2026-08-13",
-      observedDays: 61,
+      observedDays: 13,
     });
     expect(result.avoidedLiters).toBeCloseTo(expectedLiters);
     expect(result.estimatedDieselSavings).toBeCloseTo(expectedLiters * 6);
     expect(result.avoidedIdleHours).toBeCloseTo(expectedIdleHours);
     expect(result.projectedThroughYearEnd).toMatchObject({
       end: "2026-12-31",
-      days: 201,
+      days: 153,
     });
-    expect(result.projectedThroughYearEnd.avoidedLiters).toBeCloseTo(expectedLiters + (expectedLiters / 61) * 140);
-    expect(result.projectedThroughYearEnd.estimatedDieselSavings).toBeCloseTo((expectedLiters + (expectedLiters / 61) * 140) * 6);
-    expect(result.projectedThroughYearEnd.avoidedIdleHours).toBeCloseTo(expectedIdleHours + (expectedIdleHours / 61) * 140);
+    expect(result.projectedThroughYearEnd.avoidedLiters).toBeCloseTo(expectedLiters + (expectedLiters / 13) * 140);
+    expect(result.projectedThroughYearEnd.estimatedDieselSavings).toBeCloseTo((expectedLiters + (expectedLiters / 13) * 140) * 6);
+    expect(result.projectedThroughYearEnd.avoidedIdleHours).toBeCloseTo(expectedIdleHours + (expectedIdleHours / 13) * 140);
   });
 
   it("nunca retorna impacto negativo e aceita preco de diesel configuravel", () => {
     const worseMonitoring = readings.map((reading) =>
-      reading.periodStart < "2026-06-14"
+      reading.periodStart === "2026-05-01"
         ? reading
         : {
             ...reading,
+            averageFuelRate: reading.averageFuelRate * 2,
             fuelConsumed: reading.fuelConsumed * 2,
             idleHours: reading.idleHours + reading.productiveHours,
             productiveHours: 0,
+            idlePercent: 100,
+            productivePercent: 0,
           },
     );
     const result = buildOperationalImpact(worseMonitoring, reportingPeriods, -3);
