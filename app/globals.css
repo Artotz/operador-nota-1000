@@ -45,10 +45,11 @@ button { color: inherit; }
 }
 
 .rail-line { position: absolute; top: 12px; bottom: 12px; right: 12px; width: 1px; background: rgba(255,255,255,.18); }
-.story-rail button { position: relative; display: flex; justify-content: flex-end; align-items: center; gap: 12px; border: 0; background: none; cursor: pointer; padding: 0; }
+.story-rail-item { position: relative; display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+.story-rail button { position: relative; z-index: 1; border: 0; background: none; cursor: pointer; padding: 0; }
 .story-rail button span { display: grid; place-items: center; width: 25px; height: 25px; order: 2; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: #0a0d0b; color: #818881; font: 700 10px/1 "Segoe UI",sans-serif; transition: .25s ease; }
-.story-rail button b { opacity: 0; transform: translateX(7px); color: #dfe4dd; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; transition: .25s ease; pointer-events: none; }
-.story-rail button:hover b, .story-rail button:focus-visible b, .story-rail button.is-active b { opacity: 1; transform: none; }
+.story-rail-item > b { opacity: 0; transform: translateX(7px); color: #dfe4dd; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; transition: .25s ease; pointer-events: none; }
+.story-rail-item:hover > b, .story-rail-item:focus-within > b, .story-rail-item.is-active > b { opacity: 1; transform: none; }
 .story-rail button.is-active span { border-color: var(--yellow); background: var(--yellow); color: #0a0d0b; box-shadow: 0 0 0 5px rgba(244,196,0,.12); }
 
 .hero-section { height: 100svh; min-height: 720px; display: flex; align-items: stretch; overflow: hidden; }

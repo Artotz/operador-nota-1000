@@ -74,7 +74,7 @@ const chartMetrics = [
 
 const criteria = [
   { number: "01", title: "Consumo", points: "25 pts", rule: "Abaixo de 26 l/h vale 25 pontos; redução de 5% vale 10." },
-  { number: "02", title: "Ociosidade", points: "25 pts", rule: "Até 20% vale 25 pontos; até 25% garante 10." },
+  { number: "02", title: "Ociosidade", points: "25 pts", rule: "Abaixo de 25% garante 10 pontos; Abaixo de 20%, 25 pontos." },
   { number: "03", title: "Horas produtivas", points: "25 pts", rule: "80% ou mais vale 25 pontos; acima de 75% vale 10." },
   { number: "04", title: "Segurança", points: "10 pts", rule: "Uso correto de EPIs e respeito às normas da operação." },
   { number: "05", title: "Cuidado com o ativo", points: "10 pts", rule: "Inspeção diária, limpeza e uso correto do equipamento." },
@@ -239,17 +239,18 @@ function StoryRail({ active }: { active: string }) {
     <nav className="story-rail" aria-label="Etapas da apresentação">
       <div className="rail-line" aria-hidden="true" />
       {sections.map(([id, label], index) => (
-        <button
-          key={id}
-          type="button"
-          className={active === id ? "is-active" : ""}
-          aria-label={`Ir para ${label}`}
-          aria-current={active === id ? "step" : undefined}
-          onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}
-        >
-          <span>{String(index + 1).padStart(2, "0")}</span>
+        <div className={`story-rail-item${active === id ? " is-active" : ""}`} key={id}>
           <b>{label}</b>
-        </button>
+          <button
+            type="button"
+            className={active === id ? "is-active" : ""}
+            aria-label={`Ir para ${label}`}
+            aria-current={active === id ? "step" : undefined}
+            onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}
+          >
+            <span>{String(index + 1).padStart(2, "0")}</span>
+          </button>
+        </div>
       ))}
     </nav>
   );
