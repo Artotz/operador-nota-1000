@@ -4,7 +4,7 @@ export type RoadmapImage = {
 };
 
 export type RoadmapMilestone = {
-  id: "kickoff" | "visit-1" | "visit-2" | "next";
+  id: "kickoff" | "visit-1" | "visit-2" | "visit-3";
   date: string;
   title: string;
   description: string;
@@ -32,6 +32,28 @@ const visitTwoImages: RoadmapImage[] = Array.from({ length: 21 }, (_, index) => 
   alt: `Registro fotográfico da segunda visita de acompanhamento, imagem ${index + 1}`,
 }));
 
+const visitThreeImageExtensions = [
+  "jpg",
+  "jpg",
+  "png",
+  "png",
+  "png",
+  "png",
+  "png",
+  "png",
+  "png",
+  "png",
+  "png",
+  "jpg",
+  "jpg",
+  "jpg",
+] as const;
+
+const visitThreeImages: RoadmapImage[] = visitThreeImageExtensions.map((extension, index) => ({
+  src: `/project-assets/roadmap/visit-3/visit-3-${String(index + 1).padStart(2, "0")}.${extension}`,
+  alt: `Registro fotográfico da terceira visita de acompanhamento, imagem ${index + 1}`,
+}));
+
 export const roadmapMilestones: RoadmapMilestone[] = [
   {
     id: "kickoff",
@@ -55,10 +77,10 @@ export const roadmapMilestones: RoadmapMilestone[] = [
     images: visitTwoImages,
   },
   {
-    id: "next",
+    id: "visit-3",
     date: "17 DE AGOSTO",
-    title: "Próximo capítulo",
-    description: "O encerramento da jornada será registrado após a próxima visita.",
-    images: [],
+    title: "Entrega do projeto",
+    description: "Apresentação dos resultados na sede da empresa.",
+    images: visitThreeImages,
   },
 ];

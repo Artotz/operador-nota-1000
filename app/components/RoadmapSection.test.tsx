@@ -17,7 +17,7 @@ describe("RoadmapSection", () => {
       expect(screen.getByRole("button", { name: date })).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "8 DE JUN" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "17 DE AGOSTO" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "17 DE AGOSTO" })).not.toBeDisabled();
     const kickoffImages = screen.getAllByRole("img");
     expect(kickoffImages).toHaveLength(2);
     expect(kickoffImages[0]).toHaveAttribute("src", "/project-assets/roadmap/kickoff/kickoff-participants.jpg");
@@ -48,14 +48,18 @@ describe("RoadmapSection", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("mantém indisponível o marco ainda sem registros", () => {
+  it("mostra os registros da terceira visita", () => {
     render(<RoadmapSection />);
 
-    const nextMilestone = screen.getByRole("button", { name: "17 DE AGOSTO" });
-    fireEvent.click(nextMilestone);
+    const visitButton = screen.getByRole("button", { name: "17 DE AGOSTO" });
+    fireEvent.click(visitButton);
 
-    expect(nextMilestone).toBeDisabled();
-    expect(screen.getByRole("button", { name: "8 DE JUN" })).toHaveAttribute("aria-pressed", "true");
+    expect(visitButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { name: "Terceira visita de acompanhamento" })).toBeInTheDocument();
+    expect(screen.getAllByRole("img")).toHaveLength(14);
+    expect(screen.getAllByRole("img")[0]).toHaveAttribute("src", "/project-assets/roadmap/visit-3/visit-3-01.jpg");
+    expect(screen.getAllByRole("img")[2]).toHaveAttribute("src", "/project-assets/roadmap/visit-3/visit-3-03.png");
+    expect(screen.getByText("14 registros fotográficos")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });
