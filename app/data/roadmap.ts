@@ -47,6 +47,9 @@ const visitThreeImageExtensions = [
   "jpg",
   "jpg",
   "jpg",
+  "jpeg",
+  "jpeg",
+  "jpeg",
 ] as const;
 
 const visitThreeImages: RoadmapImage[] = visitThreeImageExtensions.map((extension, index) => ({
