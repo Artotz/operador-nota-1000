@@ -11,6 +11,10 @@ npm run dev
 
 A aplicação fica disponível em `http://localhost:3000`.
 
+## Acesso protegido
+
+O site usa uma única combinação de login e senha. Copie `.env.example` para `.env.local` e preencha `AUTH_LOGIN`, `AUTH_PASSWORD` e `AUTH_SECRET` (um valor longo e aleatório). Na Vercel, cadastre essas mesmas três variáveis em **Settings → Environment Variables** e faça um novo deploy.
+
 ## Atualização dos dados
 
 1. Coloque os relatórios mensais `.xlsx` do Analisador da Máquina na pasta local `edu/outros_relatorios`.

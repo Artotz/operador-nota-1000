@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { RoadmapSection } from "@/app/components/RoadmapSection";
+import { LogoutButton } from "@/app/components/LogoutButton";
 import machineReadings from "@/app/data/machine-readings.json";
 import { operatorAssignments, reportingPeriods } from "@/app/data/project-data";
 import { aggregateReadings, buildOperationalImpact, buildRanking, round } from "@/app/lib/analytics";
@@ -1058,6 +1059,7 @@ export function ProjectExperience() {
   return (
     <main className="project-experience">
       <StoryRail active={activeSection} />
+      <LogoutButton />
       <section id="abertura" className="hero-section story-section">
         <Image className="hero-photo" src="/project-assets/hero/IMG_4736.JPG.jpeg" alt="Equipe do Projeto Operador Nota 1.000 em campo" fill priority sizes="100vw" />
         <div className="hero-overlay" />

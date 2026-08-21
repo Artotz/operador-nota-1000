@@ -27,6 +27,21 @@ body {
 button, a { font: inherit; }
 button { color: inherit; }
 
+.login-page { min-height: 100svh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 75% 15%, rgba(244,196,0,.13), transparent 30%), #0a0d0b; }
+.login-card { width: min(100%, 410px); padding: 42px; border: 1px solid rgba(244,196,0,.34); background: rgba(17,21,17,.94); box-shadow: 0 30px 80px rgba(0,0,0,.42); }
+.login-eyebrow { margin: 0 0 17px; color: var(--yellow); font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
+.login-card h1 { margin: 0; color: #fff; font: 400 clamp(48px,11vw,68px)/.82 Impact, "Arial Narrow", sans-serif; letter-spacing: -.02em; text-transform: uppercase; }
+.login-card h1 strong { color: var(--yellow); font: inherit; }
+.login-intro { margin: 25px 0 28px; color: var(--muted); line-height: 1.55; }
+.login-card label { display: grid; gap: 8px; margin-top: 17px; color: #dfe4dd; font-size: 13px; font-weight: 700; }
+.login-card input { width: 100%; border: 1px solid rgba(255,255,255,.2); border-radius: 0; padding: 13px; background: #0a0d0b; color: #fff; outline: none; }
+.login-card input:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(244,196,0,.14); }
+.login-card button, .logout-button { border: 0; background: var(--yellow); color: #0a0d0b; cursor: pointer; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; }
+.login-card button { width: 100%; margin-top: 28px; padding: 14px; }
+.login-card button:disabled, .logout-button:disabled { cursor: wait; opacity: .7; }
+.login-error { margin: 17px 0 -10px; color: #fda4af; font-size: 14px; }
+.logout-button { position: fixed; z-index: 60; top: 18px; right: 18px; padding: 10px 14px; border: 1px solid rgba(244,196,0,.55); font-size: 11px; }
+
 ::selection { background: var(--yellow); color: #111; }
 
 .project-experience { min-height: 100vh; background: var(--ink); }
